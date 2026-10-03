@@ -20,6 +20,10 @@ class AiInsight(Base):
     )
     sim_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     type: Mapped[str] = mapped_column(String(40), index=True)
+    # Стабильный ключ проблемы («kitchen_overload:grill»): пока проблема жива,
+    # повторный анализ обновляет её, а не создаёт дубликат, и решение
+    # менеджера по ней не теряется.
+    key: Mapped[str] = mapped_column(String(80), index=True, default="")
     horizon_min: Mapped[int] = mapped_column(Integer, default=0)
     severity: Mapped[str] = mapped_column(String(20), index=True)
     probability: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Терра · AI Restaurant Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #12110f;
+      --panel: #1b1916;
+      --panel-2: #221f1b;
+      --line: #34302a;
+      --text: #f3ece2;
+      --muted: #a79c8e;
+      --gold: #d4a373;
+      --gold-2: #e8c39e;
+      --ok: #7cbc6e;
+      --warn: #e0b04a;
+      --crit: #e06a4a;
+      --info: #7ea8c9;
+      --free: #6fbf8a;
+      --busy: #d4a373;
+      --reserved: #7ea8c9;
+      --await: #c9a06a;
+      --issue: #e06a4a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: Manrope, system-ui, sans-serif; }
+    button, input { font-family: inherit; }
+    #app { display: grid; grid-template-columns: 240px 1fr; min-height: 100%; }
+    aside {
+      background: #161410;
+      border-right: 1px solid var(--line);
+      padding: 28px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .brand { display: flex; flex-direction: column; gap: 4px; padding: 0 8px; }
+    .brand b { font-size: 20px; letter-spacing: .04em; }
+    .brand span { color: var(--gold); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+    nav { display: flex; flex-direction: column; gap: 6px; }
+    nav button {
+      appearance: none; border: 0; background: transparent; color: var(--muted);
+      text-align: left; padding: 11px 12px; border-radius: 10px; cursor: pointer; font-size: 14px;
+    }
+    nav button.active, nav button:hover { background: var(--panel-2); color: var(--text); }
+    .aside-note { margin-top: auto; font-size: 12px; color: var(--muted); line-height: 1.45; padding: 12px; background: var(--panel); border-radius: 12px; }
+    main { padding: 28px 32px 48px; overflow: auto; }
+    .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+    h1 { margin: 0 0 6px; font-size: 28px; }
+    .sub { color: var(--muted); margin: 0; }
+    .clock { font-size: 28px; font-weight: 800; color: var(--gold-2); }
+    .grid { display: grid; gap: 14px; }
+    .kpi { grid-template-columns: repeat(4, 1fr); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+    .card h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+    .big { font-size: 32px; font-weight: 800; line-height: 1; }
+    .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .two { grid-template-columns: 1.4fr 1fr; }
+    .split { grid-template-columns: 1fr 1fr; }
+    .alert { border-left: 4px solid var(--warn); padding-left: 14px; margin-bottom: 10px; }
+    .alert.critical { border-left-color: var(--crit); }
+    .alert.info { border-left-color: var(--info); }
+    .sev { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+    .sev.critical { color: var(--crit); }
+    .sev.warning { color: var(--warn); }
+    .sev.info { color: var(--info); }
+    .alert b { display: block; margin: 2px 0 6px; }
+    .cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .col { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; min-height: 420px; }
+    .col h3 { margin: 0 0 12px; }
+    .order { background: var(--panel-2); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+    .order .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .wait { font-weight: 700; }
+    .wait.late { color: var(--crit); }
+    .wait.hot { color: var(--warn); }
+    .map { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+    .tbl {
+      min-height: 92px; border-radius: 14px; padding: 10px; cursor: pointer;
+      border: 1px solid var(--line); background: var(--panel-2);
+    }
+    .tbl.free { background: #1b2a20; }
+    .tbl.occupied { background: #2a2218; }
+    .tbl.reserved { background: #18222b; }
+    .tbl.awaiting_guest { background: #2a2418; }
+    .tbl.service_issue { background: #2b1816; outline: 1px solid var(--crit); }
+    .tbl small { display: block; color: var(--muted); margin-top: 6px; font-size: 12px; }
+    .legend { display: flex; gap: 14px; color: var(--muted); font-size: 12px; margin: 0 0 14px; flex-wrap: wrap; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .bar { height: 8px; background: #2b2722; border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: var(--gold); }
+    .bar.warn > i { background: var(--warn); }
+    .bar.crit > i { background: var(--crit); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .btn {
+      border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 700;
+    }
+    .btn.ok { background: #2d4a2c; color: #d7f0d3; }
+    .btn.no { background: #3a2723; color: #f0d3cd; }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .drawer {
+      position: fixed; right: 0; top: 0; height: 100%; width: 380px; background: #1a1714;
+      border-left: 1px solid var(--line); padding: 24px; transform: translateX(100%);
+      transition: .2s ease; z-index: 5; overflow: auto;
+    }
+    .drawer.open { transform: none; }
+    .tag { display: inline-block; background: #2b261f; color: var(--gold-2); border-radius: 99px; padding: 4px 8px; font-size: 12px; margin: 0 6px 6px 0; }
+    .err { color: var(--crit); }
+    @media (max-width: 1100px) {
+      #app { grid-template-columns: 1fr; }
+      aside { display: none; }
+      .kpi, .cols, .two, .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside>
+      <div class="brand">
+        <b>Терра</b>
+        <span>AI Restaurant Manager</span>
+      </div>
+      <nav>
+        <button data-page="dashboard" class="active">Главная панель</button>
+        <button data-page="orders">Заказы</button>
+        <button data-page="tables">Карта столиков</button>
+        <button data-page="insights">AI-анализ</button>
+        <button data-page="inventory">Запасы</button>
+        <button data-page="reviews">Отзывы</button>
+      </nav>
+      <div class="aside-note">ИИ не управляет рестораном. Он находит проблему, объясняет причину и предлагает действие. Решение принимает менеджер.</div>
+    </aside>
+    <main>
+      <div class="top">
+        <div>
+          <h1 id="title">Главная панель</h1>
+          <p class="sub" id="subtitle">Ресторан «Терра» · поддержка решений менеджера</p>
+        </div>
+        <div class="clock" id="clock">—:—</div>
+      </div>
+      <div id="page"></div>
+    </main>
+  </div>
+  <div class="drawer" id="drawer"></div>
+
+  <script>
+    const titles = {
+      dashboard: ["Главная панель", "Сводка зала, кухни и предупреждений"],
+      orders: ["Мониторинг заказов", "Новые, в работе, готовые и задержанные"],
+      tables: ["Карта столиков", "Свободен, занят, бронь, ожидание, проблема"],
+      insights: ["AI-анализ", "Проблема → объяснение → рекомендация → ваше решение"],
+      inventory: ["Запасы", "Остатки в порциях и риск нехватки"],
+      reviews: ["Отзывы", "Повторяющиеся проблемы за неделю"],
+    };
+
+    const $ = (id) => document.getElementById(id);
+    let current = "dashboard";
+
+    document.querySelectorAll("nav button").forEach((btn) => {
+      btn.addEventListener("click", () => show(btn.dataset.page));
+    });
+
+    async function api(path, options) {
+      const res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, options));
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    function show(page) {
+      current = page;
+      document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.page === page));
+      $("title").textContent = titles[page][0];
+      $("subtitle").textContent = titles[page][1];
+      $("drawer").classList.remove("open");
+      load();
+    }
+
+    function sevClass(s) { return s || "info"; }
+    function waitClass(min, promised) {
+      if (min > promised) return "late";
+      if (min > promised - 7) return "hot";
+      return "";
+    }
+    function pct(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 0;
+      return Math.max(0, Math.min(100, Math.round(n * 10) / 10));
+    }
+    function barClass(value) { const n = pct(value); return n >= 85 ? "crit" : n >= 70 ? "warn" : ""; }
+    function stationName(s) {
+      return { grill: "Гриль", hot_line: "Горячий цех", cold_line: "Холодный цех", pastry: "Десерты", bar: "Бар" }[s] || s;
+    }
+    function statusName(s) {
+      return { free: "свободен", occupied: "занят", reserved: "бронь", awaiting_guest: "ожидается гость", service_issue: "проблема" }[s] || s;
+    }
+    function roleName(s) {
+      return { waiter: "официант", cook: "повар", host: "хостес", runner: "раннер", bartender: "бармен" }[s] || s;
+    }
+
+    async function load() {
+      $("page").innerHTML = "<p class='hint'>Загружаю данные зала…</p>";
+      try {
+        if (current === "dashboard") await renderDashboard();
+        if (current === "orders") await renderOrders();
+        if (current === "tables") await renderTables();
+        if (current === "insights") await renderInsights();
+        if (current === "inventory") await renderInventory();
+        if (current === "reviews") await renderReviews();
+      } catch (e) {
+        $("page").innerHTML = `<p class="err">Не удалось загрузить данные: ${e.message}</p>`;
+      }
+    }
+
+    async function renderDashboard() {
+      const d = await api("/api/dashboard");
+      $("clock").textContent = d.now;
+      const o = d.dashboard;
+      const f = d.forecast;
+      const alerts = d.alerts || [];
+      $("page").innerHTML = `
+        <div class="grid kpi">
+          <div class="card"><h3>Столики</h3><div class="big">${o.occupancy.free} / ${o.occupancy.total}</div><div class="hint">свободно · занято ${o.occupancy.occupied} · бронь ${o.occupancy.reserved} · загрузка ${pct(o.occupancy.occupancy_pct)}%</div></div>
+          <div class="card"><h3>Заказы</h3><div class="big">${o.orders.active}</div><div class="hint">среднее ожидание ${o.orders.avg_wait_min} мин · задержано ${o.orders.delayed}</div></div>
+          <div class="card"><h3>Брони 30 / 60 мин</h3><div class="big">${o.reservations.next_30m} / ${o.reservations.next_60m}</div><div class="hint">${o.reservations.guests_30m} гостей в ближайшие полчаса</div></div>
+          <div class="card"><h3>Кухня</h3><div class="big">${pct(o.kitchen.load_pct)}%</div><div class="hint">узкое место: ${stationName(o.kitchen.bottleneck_station)} ${pct(o.kitchen.bottleneck_load_pct)}%</div></div>
+        </div>
+        <div class="grid two" style="margin-top:14px">
+          <div class="card">
+            <h3>AI-предупреждения</h3>
+            ${alerts.length ? alerts.map(a => `
+              <div class="alert ${a.severity}">
+                <span class="sev ${a.severity}">${a.severity}</span>
+                <b>${a.title}</b>
+                <div class="hint">${a.explanation}</div>
+              </div>`).join("") : "<p class='hint'>Сейчас система не видит критичных проблем.</p>"}
+          </div>
+          <div class="card">
+            <h3>Прогноз на ${f.horizon_min} минут</h3>
+            <div class="big">${pct(f.overload_probability * 100)}%</div>
+            <div class="hint">вероятность перегрузки к ${f.at_time}</div>
+            <p>${f.reason}. Ожидание может вырасти до ${f.avg_wait_forecast_min} мин.</p>
+            ${Object.values(o.kitchen.stations).map(s => `
+              <div style="margin:10px 0">
+                <div style="display:flex;justify-content:space-between;font-size:13px"><span>${stationName(s.station)}</span><span>${pct(s.load_pct)}%</span></div>
+                <div class="bar ${barClass(s.load_pct)}"><i style="width:${pct(s.load_pct)}%"></i></div>
+              </div>`).join("")}
+          </div>
+        </div>`;
+    }
+
+    async function renderOrders() {
+      const d = await api("/api/orders/board");
+      const labels = { new: "Новые", cooking: "Готовятся", ready: "Готовы", delayed: "Задержанные" };
+      $("page").innerHTML = `
+        <p class="hint" style="margin-top:0">Активных ${d.stats.active} · среднее ожидание ${d.stats.avg_wait_min} мин · задержано ${d.stats.delayed}</p>
+        <div class="cols">${Object.entries(labels).map(([key, label]) => `
+          <div class="col">
+            <h3>${label} · ${d.columns[key].length}</h3>
+            ${d.columns[key].map(o => `
+              <div class="order">
+                <div class="meta"><span>стол ${o.table_number}</span><span class="wait ${waitClass(o.wait_min, o.promised_min)}">${o.wait_min} мин</span></div>
+                <b>${o.items.map(i => i.name).join(", ")}</b>
+                <div class="hint">${o.waiter_name || "без официанта"}${o.bottleneck_station ? " · держит " + stationName(o.bottleneck_station) : ""}</div>
+              </div>`).join("") || "<p class='hint'>пусто</p>"}
+          </div>`).join("")}
+        </div>`;
+    }
+
+    async function renderTables() {
+      const d = await api("/api/tables");
+      $("page").innerHTML = `
+        <div class="legend">
+          <span><i class="dot" style="background:var(--free)"></i>свободен</span>
+          <span><i class="dot" style="background:var(--busy)"></i>занят</span>
+          <span><i class="dot" style="background:var(--reserved)"></i>бронь</span>
+          <span><i class="dot" style="background:var(--await)"></i>ожидается</span>
+          <span><i class="dot" style="background:var(--issue)"></i>проблема</span>
+        </div>
+        <div class="map">${d.tables.map(t => `
+          <div class="tbl ${t.status}" data-guest="${t.guest_id || ""}">
+            <b>${t.number}</b>
+            <small>${statusName(t.status)} · ${t.seats} мест</small>
+            <small>${t.waiter_name || "без официанта"}</small>
+            ${t.issue ? `<small class="err">${t.issue}</small>` : ""}
+            ${t.guest_name ? `<small>${t.guest_name}</small>` : ""}
+          </div>`).join("")}
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Брони в ближайший час</h3>
+          ${d.reservations.map(r => `<div>${r.time} · стол ${r.table_number || "не назначен"} · ${r.guest_name} · ${r.guests_count} гостей</div>`).join("") || "<p class='hint'>броней нет</p>"}
+        </div>`;
+      document.querySelectorAll(".tbl").forEach((el) => {
+        const id = el.dataset.guest;
+        if (id) el.addEventListener("click", () => openGuest(id));
+      });
+    }
+
+    async function openGuest(id) {
+      const g = await api("/api/guests/" + id);
+      $("drawer").classList.add("open");
+      $("drawer").innerHTML = `
+        <h2 style="margin-top:0">${g.name}</h2>
+        <p class="hint">${g.loyalty_label} · ${g.visits_count} визитов · средний чек ${g.avg_check} ₽</p>
+        <p>${g.summary}</p>
+        <div>${g.preferences.map(p => `<span class="tag">${p.kind_label}: ${p.value}</span>`).join("")}</div>
+        ${g.waiter_note ? `<p class="hint">${g.waiter_note}</p>` : ""}
+        <h3>Последние визиты</h3>
+        ${g.visits.map(v => `<div class="order"><div class="meta"><span>${v.visited_at}</span><span>${v.check_amount} ₽</span></div>${(v.dishes || []).join(", ")}</div>`).join("")}
+        <button class="btn no" onclick="document.getElementById('drawer').classList.remove('open')">Закрыть</button>`;
+    }
+
+    async function renderInsights() {
+      const list = await api("/api/ai/insights");
+      const hist = await api("/api/recommendations/history");
+      $("page").innerHTML = list.map(i => {
+        const rec = (i.recommendations || [])[0];
+        const effect = rec && rec.expected_effect;
+        return `<div class="card" style="margin-bottom:14px">
+          <span class="sev ${i.severity}">${i.severity}${i.horizon_min ? " · прогноз " + i.horizon_min + " мин" : ""}</span>
+          <h2 style="margin:6px 0 8px;font-size:20px">${i.title}</h2>
+          <p>${i.explanation}</p>
+          ${rec ? `
+            <div class="card" style="background:var(--panel-2)">
+              <h3>Рекомендация</h3>
+              <b>${rec.title}</b>
+              <p class="hint">${rec.rationale}</p>
+              ${effect ? `<p>До: ${effect.before} → прогноз после решения: ${effect.predicted_after}</p>` : ""}
+              ${rec.status === "proposed" ? `
+                <div class="actions">
+                  <button class="btn ok" data-act="accept" data-id="${rec.id}">Принять</button>
+                  <button class="btn no" data-act="reject" data-id="${rec.id}">Отклонить</button>
+                </div>` : `<p><b>Решение менеджера:</b> ${rec.status === "accepted" ? "принято" : "отклонено"}</p>`}
+              ${rec.outcome ? `<p class="hint">Измерение: было ${rec.outcome.baseline_value}, прогноз ${rec.outcome.predicted_value}, статус ${rec.outcome.verdict}</p>` : ""}
+            </div>` : ""}
+        </div>`;
+      }).join("") + `
+        <div class="card"><h3>Журнал решений</h3>
+          ${hist.length ? `<table><tr><th>Время</th><th>Решение</th><th>Статус</th><th>Результат</th></tr>
+            ${hist.map(h => `<tr><td>${h.decided_at || ""}</td><td>${h.title}</td><td>${h.status}</td><td>${h.outcome ? h.outcome.verdict : "—"}</td></tr>`).join("")}
+          </table>` : "<p class='hint'>Пока нет принятых или отклонённых рекомендаций.</p>"}
+        </div>`;
+      $("page").querySelectorAll("[data-act]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          const path = `/api/recommendations/${btn.dataset.id}/${btn.dataset.act}`;
+          await api(path, { method: "POST", body: JSON.stringify({ note: "решение с панели менеджера" }) });
+          renderInsights();
+        });
+      });
+    }
+
+    async function renderInventory() {
+      const d = await api("/api/inventory");
+      $("page").innerHTML = `
+        <div class="grid split">
+          <div class="card">
+            <h3>Риск нехватки</h3>
+            ${d.risks.map(r => `<div class="alert ${r.severity}"><b>${r.name}: ${r.portions_on_hand} порций</b><div class="hint">прогноз спроса ${r.forecast_portions} · нехватка ${r.shortfall_portions} · через ${r.minutes_to_runout} мин</div></div>`).join("") || "<p class='hint'>критичных рисков нет</p>"}
+          </div>
+          <div class="card">
+            <h3>Склад</h3>
+            <table><tr><th>Продукт</th><th>Порций</th><th>Остаток</th></tr>
+              ${d.items.map(i => `<tr><td>${i.name}</td><td>${i.portions_on_hand}</td><td>${i.qty_on_hand} ${i.unit}</td></tr>`).join("")}
+            </table>
+          </div>
+        </div>`;
+    }
+
+    async function renderReviews() {
+      const d = await api("/api/reviews/analysis");
+      $("page").innerHTML = `
+        <div class="grid split">
+          <div class="card">
+            <h3>Негатив за неделю</h3>
+            <div class="big">${pct(d.negative_share)}%</div>
+            <div class="hint">${d.negative} из ${d.total} отзывов · средняя оценка ${d.avg_rating}</div>
+            ${d.pattern ? `<p>${d.pattern.text}</p>` : ""}
+          </div>
+          <div class="card">
+            <h3>Темы негатива</h3>
+            ${d.topics.map(t => `<div style="margin:10px 0"><div style="display:flex;justify-content:space-between"><span>${t.label}</span><span>${pct(t.share_of_negative)}%</span></div><div class="bar ${pct(t.share_of_negative)>=30?'warn':''}"><i style="width:${pct(t.share_of_negative)}%"></i></div></div>`).join("")}
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3>Примеры</h3>
+          ${d.examples.map(e => `<div class="order"><div class="meta"><span>${e.created_at} · ${e.source}</span><span>${e.rating}/5</span></div>${e.text}</div>`).join("")}
+        </div>`;
+    }
+
+    show("dashboard");
+  </script>
+</body>
+</html>

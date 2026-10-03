@@ -169,18 +169,19 @@ RECIPES = {
 
 # (имя, роль, зона, станция, capacity_units, стоимость часа)
 STAFF = [
-    ("Анна Ковалёва", StaffRole.WAITER, Zone.MAIN, None, 5, 450),
-    ("Игорь Белов", StaffRole.WAITER, Zone.MAIN, None, 5, 450),
-    ("Марина Сухова", StaffRole.WAITER, Zone.TERRACE, None, 4, 450),
-    ("Денис Орлов", StaffRole.WAITER, Zone.VIP, None, 3, 480),
-    ("Сергей Гром", StaffRole.COOK, None, Station.GRILL, 6, 600),
-    ("Олег Крайнов", StaffRole.COOK, None, Station.HOT_LINE, 6, 600),
-    ("Карина Юдина", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
-    ("Люба Мартынова", StaffRole.COOK, None, Station.COLD_LINE, 5, 520),
-    ("Вика Серова", StaffRole.COOK, None, Station.PASTRY, 4, 520),
-    ("Ольга Нестерова", StaffRole.HOST, Zone.MAIN, None, 6, 420),
-    ("Павел Тихий", StaffRole.RUNNER, Zone.PASS, None, 6, 400),
-    ("Руслан Ахмедов", StaffRole.BARTENDER, Zone.BAR, Station.BAR, 6, 500),
+    ("Официант 1", StaffRole.WAITER, Zone.MAIN, None, 5, 450),
+    ("Официант 2", StaffRole.WAITER, Zone.MAIN, None, 5, 450),
+    ("Официант 3", StaffRole.WAITER, Zone.TERRACE, None, 4, 450),
+    ("Официант 4", StaffRole.WAITER, Zone.VIP, None, 3, 480),
+    ("Повар 1", StaffRole.COOK, None, Station.GRILL, 6, 600),
+    ("Повар 2", StaffRole.COOK, None, Station.GRILL, 6, 600),
+    ("Повар 3", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
+    ("Повар 4", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
+    ("Повар 5", StaffRole.COOK, None, Station.COLD_LINE, 5, 520),
+    ("Повар 6", StaffRole.COOK, None, Station.PASTRY, 4, 520),
+    ("Хостес 1", StaffRole.HOST, Zone.MAIN, None, 6, 420),
+    ("Раннер 1", StaffRole.RUNNER, Zone.PASS, None, 6, 400),
+    ("Бармен 1", StaffRole.BARTENDER, Zone.BAR, Station.BAR, 6, 500),
 ]
 
 # (имя, телефон, визитов, средний чек, уровень, [(тип предпочтения, значение)], заметка)

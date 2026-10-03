@@ -36,6 +36,7 @@ class Order(Base):
 
     table: Mapped["RestaurantTable"] = relationship(back_populates="orders")  # noqa: F821
     waiter: Mapped[Optional["Staff"]] = relationship(back_populates="orders")  # noqa: F821
+    guest: Mapped[Optional["Guest"]] = relationship()  # noqa: F821
     items: Mapped[List["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
