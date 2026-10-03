@@ -151,23 +151,23 @@ def assign_waiters_to_tables(
     tables: Dict[str, RestaurantTable],
     staff: Dict[str, Staff],
 ) -> None:
-    """Закрепление зон за официантами: нагрузка персонала считается по этим связям."""
+    """Закрепление зон: официанты в зале, бармены за барной стойкой."""
 
-    by_zone = {
-        "main": ["Официант 1", "Официант 2"],
-        "terrace": ["Официант 3"],
-        "vip": ["Официант 4"],
-        "bar": ["Бармен 1"],
-    }
+    by_zone: Dict[str, list] = {}
+    for member in staff.values():
+        if member.role == "waiter" and member.zone:
+            by_zone.setdefault(member.zone, []).append(member)
+        if member.role == "bartender" and member.zone:
+            by_zone.setdefault(member.zone, []).append(member)
+
     counters = {zone: 0 for zone in by_zone}
-
     for table in tables.values():
-        waiters = by_zone.get(table.zone)
-        if not waiters:
+        crew = by_zone.get(table.zone)
+        if not crew:
             continue
-        name = waiters[counters[table.zone] % len(waiters)]
+        member = crew[counters[table.zone] % len(crew)]
         counters[table.zone] += 1
-        table.waiter_id = staff[name].id
+        table.waiter_id = member.id
     session.flush()
 
 

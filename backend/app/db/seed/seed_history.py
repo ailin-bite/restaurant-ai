@@ -79,7 +79,8 @@ def seed_order_history(
             hour=0, minute=0, second=0, microsecond=0
         )
         is_weekend = day.weekday() >= 4
-        day_orders = rnd.randint(55, 75) if is_weekend else rnd.randint(32, 48)
+        # Зал на 200 мест: будни ~90–120 чеков, выходные ~160–200.
+        day_orders = rnd.randint(160, 200) if is_weekend else rnd.randint(90, 120)
 
         hours = list(HOUR_WEIGHTS.keys())
         weights = [HOUR_WEIGHTS[h] for h in hours]

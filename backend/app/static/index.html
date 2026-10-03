@@ -141,7 +141,7 @@
       <div class="top">
         <div>
           <h1 id="title">Главная панель</h1>
-          <p class="sub" id="subtitle">Ресторан «Терра» · поддержка решений менеджера</p>
+          <p class="sub" id="subtitle">Ресторан «Терра» · 200 мест · поддержка решений менеджера</p>
         </div>
         <div class="clock" id="clock">—:—</div>
       </div>
@@ -226,7 +226,7 @@
       const alerts = d.alerts || [];
       $("page").innerHTML = `
         <div class="grid kpi">
-          <div class="card"><h3>Столики</h3><div class="big">${o.occupancy.free} / ${o.occupancy.total}</div><div class="hint">свободно · занято ${o.occupancy.occupied} · бронь ${o.occupancy.reserved} · загрузка ${pct(o.occupancy.occupancy_pct)}%</div></div>
+          <div class="card"><h3>Посадочные места</h3><div class="big">${o.occupancy.seats_taken} / ${o.occupancy.seats_total}</div><div class="hint">занято мест · столиков свободно ${o.occupancy.free} из ${o.occupancy.total} · загрузка ${pct(o.occupancy.seats_occupancy_pct)}%</div></div>
           <div class="card"><h3>Заказы</h3><div class="big">${o.orders.active}</div><div class="hint">среднее ожидание ${o.orders.avg_wait_min} мин · задержано ${o.orders.delayed}</div></div>
           <div class="card"><h3>Брони 30 / 60 мин</h3><div class="big">${o.reservations.next_30m} / ${o.reservations.next_60m}</div><div class="hint">${o.reservations.guests_30m} гостей в ближайшие полчаса</div></div>
           <div class="card"><h3>Кухня</h3><div class="big">${pct(o.kitchen.load_pct)}%</div><div class="hint">узкое место: ${stationName(o.kitchen.bottleneck_station)} ${pct(o.kitchen.bottleneck_load_pct)}%</div></div>
@@ -283,15 +283,20 @@
           <span><i class="dot" style="background:var(--await)"></i>ожидается</span>
           <span><i class="dot" style="background:var(--issue)"></i>проблема</span>
         </div>
-        <div class="map">${d.tables.map(t => `
+        ${["main","terrace","vip","bar"].map(zone => {
+          const label = {main:"Основной зал", terrace:"Терраса", vip:"VIP", bar:"Бар"}[zone];
+          const rows = d.tables.filter(t => t.zone === zone);
+          const seats = rows.reduce((s,t) => s + t.seats, 0);
+          return `<h3 style="margin:18px 0 8px">${label} · ${seats} мест</h3>
+          <div class="map">${rows.map(t => `
           <div class="tbl ${t.status}" data-guest="${t.guest_id || ""}">
             <b>${t.number}</b>
             <small>${statusName(t.status)} · ${t.seats} мест</small>
             <small>${t.waiter_name || "без официанта"}</small>
             ${t.issue ? `<small class="err">${t.issue}</small>` : ""}
             ${t.guest_name ? `<small>${t.guest_name}</small>` : ""}
-          </div>`).join("")}
-        </div>
+          </div>`).join("")}</div>`;
+        }).join("")}
         <div class="card" style="margin-top:16px">
           <h3>Брони в ближайший час</h3>
           ${d.reservations.map(r => `<div>${r.time} · стол ${r.table_number || "не назначен"} · ${r.guest_name} · ${r.guests_count} гостей</div>`).join("") || "<p class='hint'>броней нет</p>"}

@@ -107,7 +107,11 @@ def _donor_station(snapshot: Snapshot, exclude: str) -> Optional[str]:
     candidates = [
         load
         for name, load in snapshot.station_loads.items()
-        if name != exclude and load.cooks > 1 or (name != exclude and load.cooks == 1 and load.load_pct < 30)
+        if name not in {exclude, "bar"}
+        and (
+            (load.cooks > 1 and load.load_pct < 50)
+            or (load.cooks == 1 and load.load_pct < 25)
+        )
     ]
     if not candidates:
         return None
@@ -250,9 +254,10 @@ def _rule_wait_time(snapshot: Snapshot) -> List[Detected]:
     if stats["avg_wait_min"] < settings.wait_warning_min and len(delayed) < 2:
         return []
 
+    delayed_share = len(delayed) / max(stats["active"], 1)
     severity = (
         Severity.CRITICAL.value
-        if stats["avg_wait_min"] >= settings.wait_critical_min or len(delayed) >= 3
+        if stats["avg_wait_min"] >= settings.wait_critical_min or delayed_share >= 0.25
         else Severity.WARNING.value
     )
     worst = max(delayed, key=lambda v: v.wait_min) if delayed else None
@@ -381,7 +386,7 @@ def _rule_staff(snapshot: Snapshot) -> List[Detected]:
     free = [
         v
         for v in snapshot.staff_views
-        if v.role in ("waiter", "runner", "host") and v.load_pct < 50
+        if v.role == "waiter" and v.id != worst.id and v.load_pct < 70
     ]
     helper = min(free, key=lambda v: v.load_pct) if free else None
 
@@ -390,12 +395,13 @@ def _rule_staff(snapshot: Snapshot) -> List[Detected]:
             key=f"staff_overload:{worst.id}",
             type=InsightType.STAFF_OVERLOAD.value,
             severity=(
-                Severity.CRITICAL.value if worst.load_pct >= 95 else Severity.WARNING.value
+                Severity.CRITICAL.value
+                if worst.load_pct >= 100 and worst.tables_count >= 6
+                else Severity.WARNING.value
             ),
             title=f"{worst.name}: нагрузка {worst.load_pct:.0f}%",
             explanation=(
-                f"На {worst.name} приходится {worst.basis} при норме "
-                f"{worst.tables_count + worst.active_orders} условных единиц. "
+                f"На {worst.name} приходится {worst.basis}. "
                 f"При такой нагрузке растёт время реакции на запросы гостей."
                 + (
                     f" Наименее загружен сейчас {helper.name} ({helper.load_pct:.0f}%)."

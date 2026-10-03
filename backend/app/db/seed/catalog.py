@@ -14,56 +14,56 @@ from app.core.enums import (
     Zone,
 )
 
-# (номер, зона, мест, x, y) — x/y задают раскладку карты столиков
-TABLES = [
-    ("1", Zone.MAIN, 2, 0, 0),
-    ("2", Zone.MAIN, 2, 1, 0),
-    ("3", Zone.MAIN, 4, 2, 0),
-    ("4", Zone.MAIN, 4, 3, 0),
-    ("5", Zone.MAIN, 4, 0, 1),
-    ("6", Zone.MAIN, 6, 1, 1),
-    ("7", Zone.MAIN, 2, 2, 1),
-    ("8", Zone.MAIN, 4, 3, 1),
-    ("9", Zone.MAIN, 4, 0, 2),
-    ("10", Zone.MAIN, 6, 1, 2),
-    ("11", Zone.TERRACE, 4, 0, 4),
-    ("12", Zone.TERRACE, 4, 1, 4),
-    ("13", Zone.TERRACE, 2, 2, 4),
-    ("14", Zone.TERRACE, 6, 3, 4),
-    ("15", Zone.TERRACE, 6, 4, 4),
-    ("V1", Zone.VIP, 8, 5, 0),
-    ("V2", Zone.VIP, 6, 5, 1),
-    ("B1", Zone.BAR, 2, 5, 3),
-]
+def _tables():
+    """Зал на 200 мест: основной зал 110, терраса 50, VIP 28, бар 12."""
 
-# (название, единица, остаток, расход на порцию, норма, точка заказа, поставщик, срок поставки ч)
+    rows = []
+
+    def add(prefix, zone, seats_list, cols, y0):
+        for i, seats in enumerate(seats_list):
+            number = str(i + 1) if prefix == "" else f"{prefix}{i + 1}"
+            rows.append((number, zone, seats, i % cols, y0 + i // cols))
+
+    add("", Zone.MAIN, [2] * 10 + [4] * 15 + [6] * 5, 6, 0)  # 30 столов, 110 мест
+    add("T", Zone.TERRACE, [2] * 3 + [4] * 8 + [6] * 2, 5, 6)  # 13 столов, 50 мест
+    add("V", Zone.VIP, [8, 8, 6, 6], 2, 0)  # 4 стола, 28 мест
+    add("B", Zone.BAR, [2] * 6, 3, 3)  # 6 столов, 12 мест
+    return rows
+
+
+TABLES = _tables()
+SEATS_TOTAL = sum(seats for _n, _z, seats, _x, _y in TABLES)
+assert SEATS_TOTAL == 200, SEATS_TOTAL
+
+# Остатки рассчитаны на смену зала на 200 мест. Курица оставлена короткой:
+# вечерний спрос её обгонит, и предупреждение о нехватке появится из данных.
 INVENTORY = [
-    ("Куриная грудка", InventoryUnit.KG, 1.44, 0.18, 6.0, 2.0, "Фермер Плюс", 24),
-    ("Рибай говяжий", InventoryUnit.KG, 4.50, 0.30, 8.0, 3.0, "Мясной двор", 48),
-    ("Фарш говяжий", InventoryUnit.KG, 3.00, 0.20, 6.0, 2.0, "Мясной двор", 48),
-    ("Лосось", InventoryUnit.KG, 2.20, 0.22, 5.0, 2.0, "Северная рыба", 36),
-    ("Тунец консервированный", InventoryUnit.KG, 1.20, 0.08, 3.0, 1.0, "Опт-Фуд", 24),
-    ("Креветки", InventoryUnit.KG, 1.10, 0.10, 3.0, 1.0, "Северная рыба", 36),
-    ("Паста спагетти", InventoryUnit.KG, 6.00, 0.12, 10.0, 3.0, "Опт-Фуд", 24),
-    ("Рис арборио", InventoryUnit.KG, 2.50, 0.09, 5.0, 1.5, "Опт-Фуд", 24),
-    ("Шампиньоны", InventoryUnit.KG, 2.00, 0.10, 4.0, 1.5, "Зелёный рынок", 12),
-    ("Картофель", InventoryUnit.KG, 14.00, 0.20, 20.0, 6.0, "Зелёный рынок", 12),
-    ("Томаты", InventoryUnit.KG, 5.00, 0.12, 8.0, 2.5, "Зелёный рынок", 12),
-    ("Огурцы", InventoryUnit.KG, 3.00, 0.08, 5.0, 1.5, "Зелёный рынок", 12),
-    ("Салат романо", InventoryUnit.KG, 1.40, 0.07, 3.0, 1.0, "Зелёный рынок", 12),
-    ("Пармезан", InventoryUnit.KG, 1.10, 0.03, 2.0, 0.6, "Опт-Фуд", 24),
-    ("Сыр фета", InventoryUnit.KG, 1.00, 0.05, 2.0, 0.6, "Опт-Фуд", 24),
-    ("Сливки 33%", InventoryUnit.LITER, 3.00, 0.08, 5.0, 1.5, "Молоко-Сервис", 24),
-    ("Яйца", InventoryUnit.PCS, 90.0, 1.0, 120.0, 40.0, "Фермер Плюс", 24),
-    ("Булочка для бургера", InventoryUnit.PCS, 24.0, 1.0, 40.0, 12.0, "Пекарня №1", 12),
-    ("Маскарпоне", InventoryUnit.KG, 1.20, 0.07, 2.0, 0.6, "Опт-Фуд", 24),
-    ("Кофе в зёрнах", InventoryUnit.KG, 2.40, 0.012, 4.0, 1.0, "Кофе Трейд", 48),
-    ("Вино красное", InventoryUnit.LITER, 7.50, 0.15, 12.0, 4.0, "Винный дом", 72),
-    ("Лимоны", InventoryUnit.KG, 2.00, 0.05, 4.0, 1.2, "Зелёный рынок", 12),
-    ("Кокосовое молоко", InventoryUnit.LITER, 3.00, 0.12, 5.0, 1.5, "Опт-Фуд", 24),
-    ("Овощи для гриля", InventoryUnit.KG, 3.60, 0.22, 6.0, 2.0, "Зелёный рынок", 12),
-    ("Тыква", InventoryUnit.KG, 2.80, 0.15, 5.0, 1.5, "Зелёный рынок", 12),
-    ("Свёкла", InventoryUnit.KG, 3.20, 0.12, 5.0, 1.5, "Зелёный рынок", 12),
+    ("Куриная грудка", InventoryUnit.KG, 1.44, 0.18, 16.0, 6.0, "Фермер Плюс", 24),
+    ("Рибай говяжий", InventoryUnit.KG, 12.0, 0.30, 22.0, 8.0, "Мясной двор", 48),
+    ("Фарш говяжий", InventoryUnit.KG, 8.0, 0.20, 16.0, 6.0, "Мясной двор", 48),
+    ("Лосось", InventoryUnit.KG, 6.0, 0.22, 14.0, 5.0, "Северная рыба", 36),
+    ("Тунец консервированный", InventoryUnit.KG, 3.2, 0.08, 8.0, 2.5, "Опт-Фуд", 24),
+    ("Креветки", InventoryUnit.KG, 3.0, 0.10, 8.0, 2.5, "Северная рыба", 36),
+    ("Паста спагетти", InventoryUnit.KG, 16.0, 0.12, 26.0, 8.0, "Опт-Фуд", 24),
+    ("Рис арборио", InventoryUnit.KG, 6.5, 0.09, 13.0, 4.0, "Опт-Фуд", 24),
+    ("Шампиньоны", InventoryUnit.KG, 5.2, 0.10, 11.0, 4.0, "Зелёный рынок", 12),
+    ("Картофель", InventoryUnit.KG, 38.0, 0.20, 52.0, 16.0, "Зелёный рынок", 12),
+    ("Томаты", InventoryUnit.KG, 13.0, 0.12, 21.0, 7.0, "Зелёный рынок", 12),
+    ("Огурцы", InventoryUnit.KG, 8.0, 0.08, 13.0, 4.0, "Зелёный рынок", 12),
+    ("Салат романо", InventoryUnit.KG, 3.8, 0.07, 8.0, 2.5, "Зелёный рынок", 12),
+    ("Пармезан", InventoryUnit.KG, 2.8, 0.03, 5.0, 1.6, "Опт-Фуд", 24),
+    ("Сыр фета", InventoryUnit.KG, 2.6, 0.05, 5.0, 1.6, "Опт-Фуд", 24),
+    ("Сливки 33%", InventoryUnit.LITER, 8.0, 0.08, 13.0, 4.0, "Молоко-Сервис", 24),
+    ("Яйца", InventoryUnit.PCS, 240.0, 1.0, 320.0, 100.0, "Фермер Плюс", 24),
+    ("Булочка для бургера", InventoryUnit.PCS, 64.0, 1.0, 110.0, 32.0, "Пекарня №1", 12),
+    ("Маскарпоне", InventoryUnit.KG, 3.2, 0.07, 5.0, 1.6, "Опт-Фуд", 24),
+    ("Кофе в зёрнах", InventoryUnit.KG, 6.4, 0.012, 11.0, 2.5, "Кофе Трейд", 48),
+    ("Вино красное", InventoryUnit.LITER, 20.0, 0.15, 32.0, 10.0, "Винный дом", 72),
+    ("Лимоны", InventoryUnit.KG, 5.2, 0.05, 11.0, 3.0, "Зелёный рынок", 12),
+    ("Кокосовое молоко", InventoryUnit.LITER, 8.0, 0.12, 13.0, 4.0, "Опт-Фуд", 24),
+    ("Овощи для гриля", InventoryUnit.KG, 9.5, 0.22, 16.0, 5.0, "Зелёный рынок", 12),
+    ("Тыква", InventoryUnit.KG, 7.4, 0.15, 13.0, 4.0, "Зелёный рынок", 12),
+    ("Свёкла", InventoryUnit.KG, 8.4, 0.12, 13.0, 4.0, "Зелёный рынок", 12),
 ]
 
 # (название, категория, станция, цена, минут готовки, сложность, вегетарианское, острое)
@@ -167,22 +167,29 @@ RECIPES = {
     "Бокал вина": [("Вино красное", 0.15)],
 }
 
-# (имя, роль, зона, станция, capacity_units, стоимость часа)
-STAFF = [
-    ("Официант 1", StaffRole.WAITER, Zone.MAIN, None, 5, 450),
-    ("Официант 2", StaffRole.WAITER, Zone.MAIN, None, 5, 450),
-    ("Официант 3", StaffRole.WAITER, Zone.TERRACE, None, 4, 450),
-    ("Официант 4", StaffRole.WAITER, Zone.VIP, None, 3, 480),
-    ("Повар 1", StaffRole.COOK, None, Station.GRILL, 6, 600),
-    ("Повар 2", StaffRole.COOK, None, Station.GRILL, 6, 600),
-    ("Повар 3", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
-    ("Повар 4", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
-    ("Повар 5", StaffRole.COOK, None, Station.COLD_LINE, 5, 520),
-    ("Повар 6", StaffRole.COOK, None, Station.PASTRY, 4, 520),
-    ("Хостес 1", StaffRole.HOST, Zone.MAIN, None, 6, 420),
-    ("Раннер 1", StaffRole.RUNNER, Zone.PASS, None, 6, 400),
-    ("Бармен 1", StaffRole.BARTENDER, Zone.BAR, Station.BAR, 6, 500),
-]
+# Смена на 200 мест: ~1 официант на 18 мест, кухня с узким местом на гриле.
+STAFF = (
+    [("Официант %d" % i, StaffRole.WAITER, Zone.MAIN, None, 5, 450) for i in range(1, 7)]
+    + [("Официант %d" % i, StaffRole.WAITER, Zone.TERRACE, None, 5, 450) for i in range(7, 10)]
+    + [("Официант %d" % i, StaffRole.WAITER, Zone.VIP, None, 3, 480) for i in range(10, 12)]
+    + [
+        ("Повар 1", StaffRole.COOK, None, Station.GRILL, 6, 600),
+        ("Повар 2", StaffRole.COOK, None, Station.GRILL, 6, 600),
+        ("Повар 3", StaffRole.COOK, None, Station.GRILL, 6, 600),
+        ("Повар 4", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
+        ("Повар 5", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
+        ("Повар 6", StaffRole.COOK, None, Station.HOT_LINE, 5, 560),
+        ("Повар 7", StaffRole.COOK, None, Station.COLD_LINE, 5, 520),
+        ("Повар 8", StaffRole.COOK, None, Station.COLD_LINE, 5, 520),
+        ("Повар 9", StaffRole.COOK, None, Station.PASTRY, 4, 520),
+        ("Хостес 1", StaffRole.HOST, Zone.MAIN, None, 8, 420),
+        ("Хостес 2", StaffRole.HOST, Zone.TERRACE, None, 8, 420),
+        ("Раннер 1", StaffRole.RUNNER, Zone.PASS, None, 8, 400),
+        ("Раннер 2", StaffRole.RUNNER, Zone.PASS, None, 8, 400),
+        ("Бармен 1", StaffRole.BARTENDER, Zone.BAR, Station.BAR, 6, 500),
+        ("Бармен 2", StaffRole.BARTENDER, Zone.BAR, Station.BAR, 6, 500),
+    ]
+)
 
 # (имя, телефон, визитов, средний чек, уровень, [(тип предпочтения, значение)], заметка)
 GUESTS = [

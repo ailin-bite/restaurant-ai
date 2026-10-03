@@ -22,8 +22,8 @@ from app.db.models import MenuItem, Order, OrderItem, Staff
 # Сколько позиций повар реально ведёт одновременно на своей станции:
 # на гриле параллельно лежит несколько стейков, на раздаче десертов — меньше.
 PARALLEL_CAPACITY = {
-    "grill": 3,
-    "hot_line": 3,
+    "grill": 4,
+    "hot_line": 4,
     "cold_line": 4,
     "pastry": 3,
     "bar": 5,

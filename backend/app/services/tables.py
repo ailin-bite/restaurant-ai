@@ -13,8 +13,9 @@ from app.services.orders import ACTIVE_STATUSES
 
 # Столик занят, но заказ не принят дольше этого времени — проблема обслуживания.
 NO_ORDER_ALERT_MIN = 20
-# К занятому столику давно не подходили.
-NO_SERVICE_ALERT_MIN = 15
+# К столику с заказом не подходили слишком долго. 15 минут в зале на 200 мест —
+# обычная пауза, не авария.
+NO_SERVICE_ALERT_MIN = 25
 
 
 @dataclass
@@ -121,13 +122,17 @@ def _detect_issue(
     """Проблема выводится из данных, а не выставляется вручную:
     гость сидит, но заказа нет, либо к столику давно не подходили."""
 
-    if table.status == TableStatus.FREE.value:
+    if table.status in (
+        TableStatus.FREE.value,
+        TableStatus.RESERVED.value,
+        TableStatus.AWAITING_GUEST.value,
+    ):
         return None
 
     if occupied_min is not None and order is None and occupied_min >= NO_ORDER_ALERT_MIN:
         return f"Гость сидит {occupied_min} мин, заказ не принят"
 
-    if table.last_service_at:
+    if order is None and table.last_service_at:
         since_service = int((now - table.last_service_at).total_seconds() / 60)
         if since_service >= NO_SERVICE_ALERT_MIN:
             return f"К столику не подходили {since_service} мин"
@@ -142,6 +147,14 @@ def occupancy(views: List[TableView]) -> dict:
         counters[view.status] = counters.get(view.status, 0) + 1
 
     busy = total - counters.get(TableStatus.FREE.value, 0)
+    seats_total = sum(v.seats for v in views)
+    taken_statuses = {
+        TableStatus.OCCUPIED.value,
+        TableStatus.RESERVED.value,
+        TableStatus.AWAITING_GUEST.value,
+        TableStatus.SERVICE_ISSUE.value,
+    }
+    seats_taken = sum(v.seats for v in views if v.status in taken_statuses)
     return {
         "total": total,
         "free": counters.get(TableStatus.FREE.value, 0),
@@ -150,6 +163,12 @@ def occupancy(views: List[TableView]) -> dict:
         "awaiting_guest": counters.get(TableStatus.AWAITING_GUEST.value, 0),
         "service_issue": counters.get(TableStatus.SERVICE_ISSUE.value, 0),
         "occupancy_pct": clamp_pct(busy / total * 100) if total else 0.0,
+        "seats_total": seats_total,
+        "seats_taken": seats_taken,
+        "seats_free": seats_total - seats_taken,
+        "seats_occupancy_pct": clamp_pct(seats_taken / seats_total * 100)
+        if seats_total
+        else 0.0,
         "issues": [v.number for v in views if v.issue],
     }
 

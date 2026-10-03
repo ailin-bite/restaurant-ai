@@ -11,6 +11,7 @@ import random
 from datetime import datetime
 
 from app.config import settings
+from app.core.time_provider import clock, evening_service_time
 from app.db.base import SessionLocal, create_all, drop_all
 from app.db.seed.seed_base import seed_reference_data
 from app.db.seed.seed_history import seed_order_history, seed_reviews
@@ -24,7 +25,8 @@ def seed_database(reset: bool = False, now: datetime = None) -> dict:
         drop_all()
     create_all()
 
-    now = now or datetime.now().replace(second=0, microsecond=0)
+    now = now or evening_service_time()
+    clock.set_fixed(now)
     rnd = random.Random(RANDOM_SEED)
 
     with SessionLocal() as session:
@@ -75,6 +77,7 @@ def main() -> None:
     print(f"База: {settings.database_path}")
     print(f"Ресторан «{settings.restaurant_name}», состояние на {stats['now']}")
     print("-" * 52)
+    print(f"  посадочных мест ........... {stats.get('seats_total', '—')}")
     print(f"  столиков .................. {stats['tables']}")
     print(f"  блюд в меню ............... {stats['menu_items']}")
     print(f"  продуктов на складе ....... {stats['inventory_items']}")

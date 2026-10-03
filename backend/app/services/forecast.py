@@ -159,7 +159,10 @@ def build(
     # именно оно определяет, когда блюдо попадёт на стол.
     now_pct = max(bottleneck.load_now_pct, 1.0)
     ratio = bottleneck.load_forecast_pct / now_pct
-    avg_wait_forecast = round(max(5.0, avg_wait_now * (0.5 + 0.5 * ratio)), 1)
+    raw_wait = max(5.0, avg_wait_now * (0.5 + 0.5 * ratio))
+    # Прогноз ожидания не может улетать в час с лишним: гость столько не сидит,
+    # менеджер увидит потолок и поймёт масштаб, а не сломанные часы.
+    avg_wait_forecast = round(min(40.0, raw_wait), 1)
 
     probability = _probability(bottleneck.load_forecast_pct)
 

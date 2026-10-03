@@ -123,7 +123,7 @@ def shortage_risks(
         )
         shortfall = max(0.0, forecast_portions - portions_on_hand)
 
-        if shortfall > 0 and minutes_to_runout <= 45:
+        if shortfall >= 6 or (shortfall > 0 and minutes_to_runout <= 25):
             severity = "critical"
         elif shortfall > 0:
             severity = "warning"

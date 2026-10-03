@@ -43,6 +43,7 @@ class RejectBody(BaseModel):
 @app.on_event("startup")
 def on_startup() -> None:
     create_all()
+    clock.load()
 
 
 def _analyze(session: Session):

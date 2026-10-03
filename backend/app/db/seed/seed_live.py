@@ -1,8 +1,7 @@
-"""Текущее состояние ресторана: активные заказы, статусы столиков, ближайшие брони.
+"""Текущее состояние зала на 200 мест: вечер перед пиком.
 
-Состояние подобрано как «вечер перед пиком»: загрузка уже заметная, есть две
-задержки и дефицит курицы — чтобы движку правил на этапе 5 было что обнаружить,
-но проблема ещё не выглядела катастрофой.
+Занятость, заказы и брони считаются от числа столиков, а не от короткого
+списка. Так масштаб остаётся согласованным, если зал снова изменят.
 """
 
 import random
@@ -28,55 +27,91 @@ from app.db.models import (
     RestaurantTable,
     Staff,
 )
-
-# (номер столика, статус заказа, минут назад создан, обещано минут)
-LIVE_ORDERS = [
-    ("3", OrderStatus.NEW, 3, 25),
-    ("6", OrderStatus.NEW, 6, 25),
-    ("11", OrderStatus.NEW, 8, 25),
-    ("4", OrderStatus.COOKING, 14, 25),
-    ("5", OrderStatus.COOKING, 17, 25),
-    ("V1", OrderStatus.COOKING, 19, 30),
-    ("12", OrderStatus.COOKING, 21, 25),
-    ("8", OrderStatus.READY, 24, 25),
-    ("14", OrderStatus.READY, 26, 25),
-    ("9", OrderStatus.DELAYED, 31, 25),
-    ("15", OrderStatus.DELAYED, 36, 25),
-]
-
-# Столики без активного заказа, но не свободные
-TABLE_STATES = {
-    "1": TableStatus.RESERVED,
-    "2": TableStatus.RESERVED,
-    "13": TableStatus.AWAITING_GUEST,
-    "V2": TableStatus.AWAITING_GUEST,
-    "10": TableStatus.SERVICE_ISSUE,
-}
-
-# (минут до прихода, гостей, столик, гость, источник)
-UPCOMING_RESERVATIONS = [
-    (12, 2, "1", "Мария Левина", ReservationSource.ONLINE),
-    (18, 4, "2", "Юлия Громова", ReservationSource.PHONE),
-    (24, 6, "V2", "Антон Руднев", ReservationSource.PHONE),
-    (27, 2, "13", "Игорь Савельев", ReservationSource.ONLINE),
-    (33, 4, "7", "Елена Сорокина", ReservationSource.ONLINE),
-    (41, 2, None, "Максим Королёв", ReservationSource.PHONE),
-    (48, 6, None, "Кирилл Дорн", ReservationSource.PHONE),
-    (55, 4, None, "Вера Ильина", ReservationSource.ONLINE),
-]
+from app.db.seed import catalog
 
 
 def _dishes_for_order(
     rnd: random.Random, menu: List[MenuItem], heavy: bool
 ) -> List[MenuItem]:
-    """Задержанные заказы содержат тяжёлые позиции с гриля — так узкое место
-    кухни видно в данных, а не задаётся вручную."""
-
     if heavy:
         grill = [d for d in menu if d.station == "grill" and d.avg_cook_time_min >= 15]
         others = [d for d in menu if d.station != "grill"]
         return rnd.sample(grill, k=min(2, len(grill))) + rnd.sample(others, k=1)
     return rnd.sample(menu, k=rnd.randint(2, 4))
+
+
+def _make_order(
+    session: Session,
+    table: RestaurantTable,
+    staff: Dict[str, Staff],
+    guests: List[Guest],
+    menu_list: List[MenuItem],
+    now: datetime,
+    rnd: random.Random,
+    status: str,
+    minutes_ago: int,
+    promised: int,
+) -> None:
+    created_at = now - timedelta(minutes=minutes_ago)
+    dishes = _dishes_for_order(rnd, menu_list, heavy=status == OrderStatus.DELAYED.value)
+    guest = rnd.choice(guests) if rnd.random() < 0.35 else None
+
+    order = Order(
+        table_id=table.id,
+        waiter_id=table.waiter_id or next(iter(staff.values())).id,
+        guest_id=guest.id if guest else None,
+        status=status,
+        created_at=created_at,
+        promised_min=promised,
+        guests_count=min(table.seats, rnd.randint(2, max(2, min(4, table.seats)))),
+        priority=OrderPriority.NORMAL.value,
+        total_amount=0.0,
+    )
+    if status == OrderStatus.DELAYED.value:
+        # Задержка из-за очереди: готовить начали недавно, ETA ещё 8–14 минут.
+        order.cooking_started_at = now - timedelta(minutes=rnd.randint(6, 10))
+    elif status == OrderStatus.COOKING.value:
+        order.cooking_started_at = created_at + timedelta(minutes=rnd.randint(2, 4))
+    elif status == OrderStatus.READY.value:
+        order.cooking_started_at = created_at + timedelta(minutes=2)
+        order.ready_at = now - timedelta(minutes=rnd.randint(1, 3))
+
+    session.add(order)
+    session.flush()
+
+    total = 0.0
+    for dish in dishes:
+        qty = 1 if rnd.random() < 0.85 else 2
+        total += dish.price * qty
+        if status == OrderStatus.NEW.value:
+            item_status, started, finished = OrderItemStatus.QUEUED, None, None
+        elif status == OrderStatus.READY.value:
+            item_status, started, finished = (
+                OrderItemStatus.READY,
+                order.cooking_started_at,
+                order.ready_at,
+            )
+        else:
+            item_status, started, finished = (
+                OrderItemStatus.COOKING,
+                order.cooking_started_at,
+                None,
+            )
+        session.add(
+            OrderItem(
+                order_id=order.id,
+                menu_item_id=dish.id,
+                qty=qty,
+                station=dish.station,
+                status=item_status.value,
+                cook_started_at=started,
+                cook_finished_at=finished,
+            )
+        )
+    order.total_amount = total
+    table.status = TableStatus.OCCUPIED.value
+    table.occupied_since = created_at - timedelta(minutes=rnd.randint(4, 12))
+    table.last_service_at = now - timedelta(minutes=rnd.randint(2, 9))
 
 
 def seed_live_state(
@@ -90,86 +125,101 @@ def seed_live_state(
 ) -> dict:
     menu_list = [d for d in menu.values() if d.category != "bar"]
     guest_list = list(guests.values())
+    numbers = [number for number, *_rest in catalog.TABLES]
+    rnd.shuffle(numbers)
+
+    # Вечер перед пиком: около двух третей столов заняты заказом.
+    n = len(numbers)
+    n_occupied = int(round(n * 0.64))
+    n_reserved = 8
+    n_awaiting = 4
+    n_issue = 2
+
+    occupied = numbers[:n_occupied]
+    reserved = numbers[n_occupied : n_occupied + n_reserved]
+    awaiting = numbers[n_occupied + n_reserved : n_occupied + n_reserved + n_awaiting]
+    issues = numbers[
+        n_occupied + n_reserved + n_awaiting : n_occupied
+        + n_reserved
+        + n_awaiting
+        + n_issue
+    ]
 
     for table in tables.values():
         table.status = TableStatus.FREE.value
         table.occupied_since = None
 
-    orders_created = 0
-    for table_number, status, minutes_ago, promised in LIVE_ORDERS:
-        table = tables[table_number]
-        created_at = now - timedelta(minutes=minutes_ago)
-        heavy = status == OrderStatus.DELAYED
+    n_delayed = max(4, n_occupied // 8)
+    n_new = max(5, n_occupied // 5)
+    n_ready = max(5, n_occupied // 5)
+    statuses = (
+        [OrderStatus.DELAYED.value] * n_delayed
+        + [OrderStatus.NEW.value] * n_new
+        + [OrderStatus.READY.value] * n_ready
+        + [OrderStatus.COOKING.value] * max(0, n_occupied - n_delayed - n_new - n_ready)
+    )
+    rnd.shuffle(statuses)
 
-        dishes = _dishes_for_order(rnd, menu_list, heavy)
-        guest = rnd.choice(guest_list) if rnd.random() < 0.5 else None
-
-        order = Order(
-            table_id=table.id,
-            waiter_id=table.waiter_id or next(iter(staff.values())).id,
-            guest_id=guest.id if guest else None,
-            status=status.value,
-            created_at=created_at,
-            promised_min=promised,
-            guests_count=min(table.seats, rnd.randint(2, 4)),
-            priority=OrderPriority.NORMAL.value,
-            total_amount=0.0,
+    for i, table_number in enumerate(occupied):
+        status = statuses[i]
+        if status == OrderStatus.NEW.value:
+            minutes_ago = rnd.randint(2, 9)
+        elif status == OrderStatus.COOKING.value:
+            minutes_ago = rnd.randint(12, 22)
+        elif status == OrderStatus.READY.value:
+            minutes_ago = rnd.randint(20, 27)
+        else:
+            minutes_ago = rnd.randint(28, 38)
+        _make_order(
+            session,
+            tables[table_number],
+            staff,
+            guest_list,
+            menu_list,
+            now,
+            rnd,
+            status,
+            minutes_ago,
+            promised=30 if tables[table_number].zone == "vip" else 25,
         )
 
-        if status in (OrderStatus.COOKING, OrderStatus.DELAYED):
-            order.cooking_started_at = created_at + timedelta(minutes=2)
-        elif status == OrderStatus.READY:
-            order.cooking_started_at = created_at + timedelta(minutes=2)
-            order.ready_at = now - timedelta(minutes=rnd.randint(1, 4))
-
-        session.add(order)
-        session.flush()
-
-        total = 0.0
-        for dish in dishes:
-            qty = 1 if rnd.random() < 0.85 else 2
-            total += dish.price * qty
-
-            if status == OrderStatus.NEW:
-                item_status = OrderItemStatus.QUEUED
-                started = finished = None
-            elif status == OrderStatus.READY:
-                item_status = OrderItemStatus.READY
-                started = order.cooking_started_at
-                finished = order.ready_at
-            else:
-                item_status = OrderItemStatus.COOKING
-                started = order.cooking_started_at
-                finished = None
-
-            session.add(
-                OrderItem(
-                    order_id=order.id,
-                    menu_item_id=dish.id,
-                    qty=qty,
-                    station=dish.station,
-                    status=item_status.value,
-                    cook_started_at=started,
-                    cook_finished_at=finished,
-                )
-            )
-
-        order.total_amount = total
-        table.status = TableStatus.OCCUPIED.value
-        table.occupied_since = created_at - timedelta(minutes=rnd.randint(4, 12))
-        table.last_service_at = now - timedelta(minutes=rnd.randint(2, 9))
-        orders_created += 1
-
-    for table_number, status in TABLE_STATES.items():
+    for table_number in reserved:
+        tables[table_number].status = TableStatus.RESERVED.value
+    for table_number in awaiting:
+        tables[table_number].status = TableStatus.AWAITING_GUEST.value
+    for table_number in issues:
         table = tables[table_number]
-        table.status = status.value
-        if status == TableStatus.SERVICE_ISSUE:
-            # Признак проблемы: к столику давно не подходили
-            table.occupied_since = now - timedelta(minutes=52)
-            table.last_service_at = now - timedelta(minutes=23)
+        table.status = TableStatus.SERVICE_ISSUE.value
+        table.occupied_since = now - timedelta(minutes=52)
+        table.last_service_at = now - timedelta(minutes=23)
 
-    reservations_created = 0
-    for minutes_ahead, guests_count, table_number, guest_name, source in UPCOMING_RESERVATIONS:
+    guest_names = list(guests.keys())
+    reservations = []
+    # Наплыв посадки: 8 броней в 30 минут и ещё 8 в следующий час.
+    for i, table_number in enumerate(reserved + awaiting):
+        minutes = 8 + i * 3 if i < 8 else 35 + (i - 8) * 3
+        seats = tables[table_number].seats
+        reservations.append(
+            (
+                minutes,
+                seats,
+                table_number,
+                guest_names[i % len(guest_names)],
+                ReservationSource.ONLINE if i % 2 == 0 else ReservationSource.PHONE,
+            )
+        )
+    for i in range(4):
+        reservations.append(
+            (
+                42 + i * 4,
+                rnd.choice([2, 4, 6]),
+                None,
+                guest_names[(i + 8) % len(guest_names)],
+                ReservationSource.PHONE,
+            )
+        )
+
+    for minutes_ahead, guests_count, table_number, guest_name, source in reservations:
         table = tables[table_number] if table_number else None
         session.add(
             Reservation(
@@ -180,16 +230,14 @@ def seed_live_state(
                 duration_min=90,
                 status=ReservationStatus.PENDING.value,
                 source=source.value,
-                note=None,
                 created_at=now - timedelta(hours=rnd.randint(2, 30)),
             )
         )
-        reservations_created += 1
 
     session.flush()
-
     return {
-        "active_orders": orders_created,
-        "upcoming_reservations": reservations_created,
-        "reservations_30m": sum(1 for r in UPCOMING_RESERVATIONS if r[0] <= 30),
+        "active_orders": len(occupied),
+        "upcoming_reservations": len(reservations),
+        "reservations_30m": sum(1 for r in reservations if r[0] <= 30),
+        "seats_total": catalog.SEATS_TOTAL,
     }

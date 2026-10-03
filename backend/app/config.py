@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     app_name: str = "AI Restaurant Manager"
     restaurant_name: str = "Терра"
+    seats_total: int = 200
     interface_language: str = "ru"
 
     database_path: Path = BACKEND_DIR / "data" / "restaurant.db"
