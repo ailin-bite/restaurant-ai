@@ -132,10 +132,9 @@
         <button data-page="orders">Заказы</button>
         <button data-page="tables">Карта столиков</button>
         <button data-page="insights">AI-анализ</button>
-        <button data-page="inventory">Запасы</button>
         <button data-page="reviews">Отзывы</button>
       </nav>
-      <div class="aside-note">ИИ не управляет рестораном. Он находит проблему, объясняет причину и предлагает действие. Решение принимает менеджер.</div>
+      <div class="aside-note">Программа смотрит зал, гостя и отзывы. Кухню, смену и склад она не оптимизирует. Решение принимает менеджер.</div>
     </aside>
     <main>
       <div class="top">
@@ -152,12 +151,11 @@
 
   <script>
     const titles = {
-      dashboard: ["Главная панель", "Сводка зала, кухни и предупреждений"],
-      orders: ["Мониторинг заказов", "Новые, в работе, готовые и задержанные"],
+      dashboard: ["Главная панель", "Сводка зала, броней и предупреждений"],
+      orders: ["Заказы", "Список активных заказов без советов кухне"],
       tables: ["Карта столиков", "Свободен, занят, бронь, ожидание, проблема"],
-      insights: ["AI-анализ", "Проблема → объяснение → рекомендация → ваше решение"],
-      inventory: ["Запасы", "Остатки в порциях и риск нехватки"],
-      reviews: ["Отзывы", "Повторяющиеся проблемы за неделю"],
+      insights: ["AI-анализ", "Проблема зала или гостя → рекомендация → ваше решение"],
+      reviews: ["Отзывы", "Повторяющиеся темы гостей за неделю"],
     };
 
     const $ = (id) => document.getElementById(id);
@@ -194,14 +192,8 @@
       return Math.max(0, Math.min(100, Math.round(n * 10) / 10));
     }
     function barClass(value) { const n = pct(value); return n >= 85 ? "crit" : n >= 70 ? "warn" : ""; }
-    function stationName(s) {
-      return { grill: "Гриль", hot_line: "Горячий цех", cold_line: "Холодный цех", pastry: "Десерты", bar: "Бар" }[s] || s;
-    }
     function statusName(s) {
       return { free: "свободен", occupied: "занят", reserved: "бронь", awaiting_guest: "ожидается гость", service_issue: "проблема" }[s] || s;
-    }
-    function roleName(s) {
-      return { waiter: "официант", cook: "повар", host: "хостес", runner: "раннер", bartender: "бармен" }[s] || s;
     }
 
     async function load() {
@@ -211,7 +203,6 @@
         if (current === "orders") await renderOrders();
         if (current === "tables") await renderTables();
         if (current === "insights") await renderInsights();
-        if (current === "inventory") await renderInventory();
         if (current === "reviews") await renderReviews();
       } catch (e) {
         $("page").innerHTML = `<p class="err">Не удалось загрузить данные: ${e.message}</p>`;
@@ -224,12 +215,13 @@
       const o = d.dashboard;
       const f = d.forecast;
       const alerts = d.alerts || [];
+      const seat = o.seating || f;
       $("page").innerHTML = `
         <div class="grid kpi">
           <div class="card"><h3>Посадочные места</h3><div class="big">${o.occupancy.seats_taken} / ${o.occupancy.seats_total}</div><div class="hint">занято мест · столиков свободно ${o.occupancy.free} из ${o.occupancy.total} · загрузка ${pct(o.occupancy.seats_occupancy_pct)}%</div></div>
-          <div class="card"><h3>Заказы</h3><div class="big">${o.orders.active}</div><div class="hint">среднее ожидание ${o.orders.avg_wait_min} мин · задержано ${o.orders.delayed}</div></div>
+          <div class="card"><h3>Заказы</h3><div class="big">${o.orders.active}</div><div class="hint">задержано ${o.orders.delayed}</div></div>
           <div class="card"><h3>Брони 30 / 60 мин</h3><div class="big">${o.reservations.next_30m} / ${o.reservations.next_60m}</div><div class="hint">${o.reservations.guests_30m} гостей в ближайшие полчаса</div></div>
-          <div class="card"><h3>Кухня</h3><div class="big">${pct(o.kitchen.load_pct)}%</div><div class="hint">узкое место: ${stationName(o.kitchen.bottleneck_station)} ${pct(o.kitchen.bottleneck_load_pct)}%</div></div>
+          <div class="card"><h3>Места под брони</h3><div class="big">${seat.free_seats}</div><div class="hint">свободно мест · нехватка ${seat.shortfall_seats}</div></div>
         </div>
         <div class="grid two" style="margin-top:14px">
           <div class="card">
@@ -239,18 +231,13 @@
                 <span class="sev ${a.severity}">${a.severity}</span>
                 <b>${a.title}</b>
                 <div class="hint">${a.explanation}</div>
-              </div>`).join("") : "<p class='hint'>Сейчас система не видит критичных проблем.</p>"}
+              </div>`).join("") : "<p class='hint'>Сейчас система не видит проблем зала или гостя.</p>"}
           </div>
           <div class="card">
-            <h3>Прогноз на ${f.horizon_min} минут</h3>
-            <div class="big">${pct(f.overload_probability * 100)}%</div>
-            <div class="hint">вероятность перегрузки к ${f.at_time}</div>
-            <p>${f.reason}. Ожидание может вырасти до ${f.avg_wait_forecast_min} мин.</p>
-            ${Object.values(o.kitchen.stations).map(s => `
-              <div style="margin:10px 0">
-                <div style="display:flex;justify-content:space-between;font-size:13px"><span>${stationName(s.station)}</span><span>${pct(s.load_pct)}%</span></div>
-                <div class="bar ${barClass(s.load_pct)}"><i style="width:${pct(s.load_pct)}%"></i></div>
-              </div>`).join("")}
+            <h3>Посадка на ${seat.horizon_min} минут</h3>
+            <div class="big">${pct(seat.probability * 100)}%</div>
+            <div class="hint">вероятность, что мест не хватит на брони</div>
+            <p>${seat.reason}.</p>
           </div>
         </div>`;
     }
@@ -259,7 +246,7 @@
       const d = await api("/api/orders/board");
       const labels = { new: "Новые", cooking: "Готовятся", ready: "Готовы", delayed: "Задержанные" };
       $("page").innerHTML = `
-        <p class="hint" style="margin-top:0">Активных ${d.stats.active} · среднее ожидание ${d.stats.avg_wait_min} мин · задержано ${d.stats.delayed}</p>
+        <p class="hint" style="margin-top:0">Активных ${d.stats.active} · задержано ${d.stats.delayed}</p>
         <div class="cols">${Object.entries(labels).map(([key, label]) => `
           <div class="col">
             <h3>${label} · ${d.columns[key].length}</h3>
@@ -267,7 +254,6 @@
               <div class="order">
                 <div class="meta"><span>стол ${o.table_number}</span><span class="wait ${waitClass(o.wait_min, o.promised_min)}">${o.wait_min} мин</span></div>
                 <b>${o.items.map(i => i.name).join(", ")}</b>
-                <div class="hint">${o.waiter_name || "без официанта"}${o.bottleneck_station ? " · держит " + stationName(o.bottleneck_station) : ""}</div>
               </div>`).join("") || "<p class='hint'>пусто</p>"}
           </div>`).join("")}
         </div>`;
@@ -359,23 +345,6 @@
           renderInsights();
         });
       });
-    }
-
-    async function renderInventory() {
-      const d = await api("/api/inventory");
-      $("page").innerHTML = `
-        <div class="grid split">
-          <div class="card">
-            <h3>Риск нехватки</h3>
-            ${d.risks.map(r => `<div class="alert ${r.severity}"><b>${r.name}: ${r.portions_on_hand} порций</b><div class="hint">прогноз спроса ${r.forecast_portions} · нехватка ${r.shortfall_portions} · через ${r.minutes_to_runout} мин</div></div>`).join("") || "<p class='hint'>критичных рисков нет</p>"}
-          </div>
-          <div class="card">
-            <h3>Склад</h3>
-            <table><tr><th>Продукт</th><th>Порций</th><th>Остаток</th></tr>
-              ${d.items.map(i => `<tr><td>${i.name}</td><td>${i.portions_on_hand}</td><td>${i.qty_on_hand} ${i.unit}</td></tr>`).join("")}
-            </table>
-          </div>
-        </div>`;
     }
 
     async function renderReviews() {

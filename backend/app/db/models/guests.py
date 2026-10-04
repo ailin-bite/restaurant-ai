@@ -29,6 +29,19 @@ class Guest(Base):
         back_populates="guest"
     )
     reviews: Mapped[List["Review"]] = relationship(back_populates="guest")  # noqa: F821
+    account: Mapped[Optional["GuestAccount"]] = relationship(
+        back_populates="guest", uselist=False
+    )
+    visit_feedback: Mapped[List["GuestFeedback"]] = relationship(
+        back_populates="guest"
+    )
+    evening: Mapped[Optional["GuestEvening"]] = relationship(
+        back_populates="guest", uselist=False
+    )
+    hidden_dishes: Mapped[List["GuestHiddenDish"]] = relationship(
+        back_populates="guest"
+    )
+    taste_log: Mapped[List["GuestTasteLog"]] = relationship(back_populates="guest")
 
 
 class GuestPreference(Base):
@@ -64,3 +77,87 @@ class GuestVisit(Base):
     dishes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     guest: Mapped["Guest"] = relationship(back_populates="visits")
+    feedback: Mapped[Optional["GuestFeedback"]] = relationship(
+        back_populates="visit", uselist=False
+    )
+
+
+class GuestAccount(Base):
+    """Вход гостя по телефону. Для демо без SMS: сам факт номера — ключ аккаунта."""
+
+    __tablename__ = "guest_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guest_id: Mapped[int] = mapped_column(ForeignKey("guests.id"), unique=True, index=True)
+    phone: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    phone_digits: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    guest: Mapped["Guest"] = relationship(back_populates="account")
+
+
+class GuestFeedback(Base):
+    """Отзыв гостя о своём визите: только для его профиля, не для управления залом."""
+
+    __tablename__ = "guest_visit_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guest_id: Mapped[int] = mapped_column(ForeignKey("guests.id"), index=True)
+    visit_id: Mapped[int] = mapped_column(
+        ForeignKey("guest_visits.id"), unique=True, index=True
+    )
+    liked_most: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    improve_topic: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    improve_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    guest: Mapped["Guest"] = relationship(back_populates="visit_feedback")
+    visit: Mapped["GuestVisit"] = relationship(back_populates="feedback")
+
+
+class GuestEvening(Base):
+    """Настроение и компания только на этот вечер, профиль не меняют."""
+
+    __tablename__ = "guest_evenings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guest_id: Mapped[int] = mapped_column(ForeignKey("guests.id"), unique=True, index=True)
+    mood: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    company: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime)
+
+    guest: Mapped["Guest"] = relationship(back_populates="evening")
+
+
+class GuestHiddenDish(Base):
+    __tablename__ = "guest_hidden_dishes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guest_id: Mapped[int] = mapped_column(ForeignKey("guests.id"), index=True)
+    dish_name: Mapped[str] = mapped_column(String(120), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    guest: Mapped["Guest"] = relationship(back_populates="hidden_dishes")
+
+
+class GuestTasteLog(Base):
+    __tablename__ = "guest_taste_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guest_id: Mapped[int] = mapped_column(ForeignKey("guests.id"), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    guest: Mapped["Guest"] = relationship(back_populates="taste_log")
+
+
+class MenuHighlight(Base):
+    """Сезонные и недельные новинки меню."""
+
+    __tablename__ = "menu_highlights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dish_name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    label: Mapped[str] = mapped_column(String(40))

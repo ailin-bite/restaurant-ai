@@ -112,6 +112,7 @@ class PreferenceKind(StrEnum):
     ALLERGY = "allergy"
     FAVORITE_DISH = "favorite_dish"
     SEATING = "seating"
+    TASTE = "taste"
 
 
 class LoyaltyTier(StrEnum):

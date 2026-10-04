@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Терра · Ваш вкус</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap&subset=cyrillic,latin" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #efe6d8;
+      --ink: #2c241e;
+      --muted: #7a6d62;
+      --panel: #fbf6ee;
+      --panel-2: #f3eadc;
+      --line: #d9cbb8;
+      --wine: #7a3e42;
+      --wine-soft: #efe0de;
+      --terra: #b56a45;
+      --sage: #5f6d58;
+      --sage-soft: #e4eadc;
+      --gold: #b0894d;
+      --ok: #4f6d4a;
+      --crit: #9a4038;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; min-height: 100%; color: var(--ink);
+      font-family: Manrope, system-ui, sans-serif;
+      background:
+        radial-gradient(900px 420px at 8% -8%, rgba(181, 106, 69, 0.22), transparent 52%),
+        radial-gradient(800px 380px at 100% 0%, rgba(122, 62, 66, 0.18), transparent 48%),
+        radial-gradient(640px 360px at 80% 100%, rgba(95, 109, 88, 0.16), transparent 46%),
+        var(--bg);
+    }
+    body::before {
+      content: "";
+      display: block;
+      height: 8px;
+      background: linear-gradient(90deg, #7a3e42 0%, #c26a3d 50%, #5a6b4f 100%);
+    }
+    button, input { font-family: inherit; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 28px 22px 72px; }
+    .brand {
+      margin: 0 0 10px; font-size: 12px; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--wine); font-weight: 700;
+    }
+    h1, h2 { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; letter-spacing: -0.02em; }
+    h1 { margin: 0 0 8px; font-size: 42px; line-height: 1.05; }
+    h2 { margin: 0 0 10px; font-size: 28px; }
+    h3 {
+      margin: 0 0 10px; font-size: 12px; color: var(--muted);
+      letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
+    }
+    .sub { color: var(--muted); margin: 0 0 24px; line-height: 1.55; max-width: 34em; }
+    .hero {
+      padding: 8px 4px 22px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 22px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(44, 36, 30, 0.08);
+      border-radius: 20px;
+      padding: 20px 20px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 30px rgba(68, 48, 32, 0.06);
+    }
+    .card.accent { border-left: 4px solid var(--wine); }
+    .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .err { color: var(--crit); }
+    input {
+      width: 100%; background: #fff; border: 1px solid var(--line); color: var(--ink);
+      border-radius: 14px; padding: 13px 14px; font-size: 16px; margin: 8px 0 14px;
+    }
+    input:focus { outline: 2px solid rgba(122, 62, 66, 0.25); border-color: var(--wine); }
+    .btn {
+      border: 0; border-radius: 999px; padding: 12px 18px; cursor: pointer; font-weight: 700;
+      background: var(--ink); color: #f7f1e8;
+    }
+    .btn.ok { background: var(--wine); color: #fbf4f1; }
+    .btn.no { background: var(--wine-soft); color: var(--wine); }
+    .btn.ghost { background: transparent; color: var(--muted); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+    .chip {
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      border-radius: 99px; padding: 8px 13px; cursor: pointer; font-size: 14px;
+    }
+    .chip.on { background: var(--wine-soft); border-color: #c9a4a4; color: var(--wine); }
+    .tag {
+      display: inline-block; background: var(--sage-soft); color: #3f4a3a;
+      border-radius: 99px; padding: 5px 10px; font-size: 12px; margin: 0 6px 6px 0;
+    }
+    .dish {
+      background: #fffdf8;
+      border-radius: 16px;
+      padding: 14px 14px 14px 16px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(44, 36, 30, 0.06);
+      border-left: 5px solid var(--gold);
+    }
+    .dish.cold { border-left-color: var(--sage); background: #f7f8f3; }
+    .dish.hot { border-left-color: var(--terra); background: #fbf4ee; }
+    .dish.dessert { border-left-color: var(--wine); background: #faf3f2; }
+    .dish.bar { border-left-color: var(--gold); background: #faf6ee; }
+    .price { display: none; }
+    .new { color: var(--sage); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+    .stars { display: flex; gap: 8px; margin: 8px 0 14px; }
+    .stars button { width: 42px; height: 42px; border-radius: 12px; padding: 0; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .demo { font-size: 13px; color: var(--muted); }
+    .demo button { background: none; border: 0; color: var(--wine); cursor: pointer; padding: 0; font-weight: 700; }
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav-btn {
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      border-radius: 999px; padding: 9px 14px; cursor: pointer; font-weight: 600; font-size: 13px;
+    }
+    .nav-btn.on { background: var(--ink); color: #f7f1e8; border-color: var(--ink); }
+    .nav-btn.quiet { background: transparent; color: var(--muted); border-color: transparent; }
+    .path { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+    .path span {
+      font-size: 12px; color: var(--muted); font-weight: 600; background: rgba(255,255,255,.55);
+      border: 1px solid var(--line); border-radius: 99px; padding: 5px 10px;
+    }
+    .path span.now { color: var(--wine); border-color: #c9a4a4; background: var(--wine-soft); }
+    .evening-now {
+      background: var(--panel-2); border-radius: 14px; padding: 11px 13px; margin-top: 4px;
+      color: var(--muted); font-size: 13px; line-height: 1.45;
+    }
+    .rec-group { margin-top: 18px; }
+    .rec-group:first-of-type { margin-top: 6px; }
+    .section { margin-bottom: 8px; }
+    .section .num {
+      display: inline-block; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--wine-soft); color: var(--wine); font-size: 12px; font-weight: 800;
+      text-align: center; line-height: 22px; margin-right: 8px;
+    }
+    .badge {
+      display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+      font-weight: 700; border-radius: 99px; padding: 3px 8px; margin-right: 6px;
+    }
+    .badge.week { background: #f3e6d2; color: #8a6230; }
+    .badge.season { background: var(--sage-soft); color: #3f4a3a; }
+    .btn.tiny { padding: 7px 12px; font-size: 12px; background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .log { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .log:last-child { border-bottom: 0; }
+    @media (max-width: 640px) {
+      h1 { font-size: 34px; }
+      .wrap { padding: 24px 16px 56px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <script>
+    const TOKEN_KEY = "terra_guest_token";
+    const $ = (id) => document.getElementById(id);
+
+    const DIETS = [
+      ["обычное", "Ем всё"],
+      ["вегетарианские блюда", "Вегетарианское"],
+      ["рыба, без мяса", "Рыба, без мяса"],
+      ["без глютена", "Без глютена"],
+    ];
+    const DISLIKES = ["острое", "мясо", "рыба", "сладкое"];
+    const ALLERGIES = ["орехи", "лактоза", "глютен"];
+    const TASTES = ["гриль", "паста", "салаты", "десерт", "суп"];
+    const IMPROVE = [
+      ["", "Всё было хорошо"],
+      ["ожидание", "Ожидание"],
+      ["еда", "Еда"],
+      ["обслуживание", "Обслуживание"],
+      ["атмосфера", "Атмосфера"],
+    ];
+    const MOODS = [
+      ["light", "Лёгкий ужин"],
+      ["business", "Деловой обед"],
+      ["sweet", "Сладкое"],
+      ["quick", "Быстро"],
+    ];
+    const COMPANY = [
+      ["alone", "Один"],
+      ["kids", "С детьми"],
+      ["no_spice", "Не ем острое сегодня"],
+    ];
+
+    let me = null;
+    let form = {
+      name: "Пользователь",
+      phone: "",
+      diet: "обычное",
+      dislikes: [],
+      allergies: [],
+      tastes: [],
+    };
+    let fb = { rating: 5, liked_most: "", improve_topic: "", improve_text: "" };
+
+    async function api(path, options = {}) {
+      const headers = { "Content-Type": "application/json" };
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (token) headers["X-Guest-Token"] = token;
+      const res = await fetch(path, Object.assign({ headers }, options));
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+      if (!res.ok) throw new Error(data.detail || data.message || text || "Ошибка");
+      return data;
+    }
+
+    function toggle(list, value) {
+      const i = list.indexOf(value);
+      if (i >= 0) list.splice(i, 1);
+      else list.push(value);
+    }
+    function chips(values, selected, onPick, multi) {
+      return values.map((item) => {
+        const value = Array.isArray(item) ? item[0] : item;
+        const label = Array.isArray(item) ? item[1] : item;
+        const on = multi ? selected.includes(value) : selected === value;
+        return `<button class="chip ${on ? "on" : ""}" data-v="${value}">${label}</button>`;
+      }).join("");
+    }
+    function bindChips(root, selected, multi, after) {
+      root.querySelectorAll(".chip").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const value = btn.dataset.v;
+          if (multi) toggle(selected, value);
+          else form.diet = value;
+          after();
+        });
+      });
+    }
+
+    function renderAuth(mode, error) {
+      $("app").innerHTML = `
+        <div class="hero">
+          <p class="brand">Ресторан Терра</p>
+          <h1>${mode === "register" ? "Расскажите, что вам нравится" : "Ваш вкус в «Терре»"}</h1>
+          <p class="sub">${mode === "register" ? "Короткий опрос — и мы будем предлагать блюда под вас. Не заказ и не бронь, только персональный кабинет." : "Войдите по телефону. Если вы уже были у нас, подтянутся прошлые заказы."}</p>
+        </div>
+        <div class="card">
+          ${error ? `<p class="err">${error}</p>` : ""}
+          <input id="phone" placeholder="Телефон +7 …" value="${form.phone}" />
+          ${mode === "register" ? `
+            <h3>Как питаетесь</h3>
+            <div class="chips" id="diets">${chips(DIETS, form.diet, null, false)}</div>
+            <h3>Что не любите</h3>
+            <div class="chips" id="dislikes">${chips(DISLIKES, form.dislikes, null, true)}</div>
+            <h3>Аллергии</h3>
+            <div class="chips" id="allergies">${chips(ALLERGIES, form.allergies, null, true)}</div>
+            <h3>Какие вкусы ближе</h3>
+            <div class="chips" id="tastes">${chips(TASTES, form.tastes, null, true)}</div>
+          ` : ""}
+          <div class="actions">
+            <button class="btn ok" id="go">${mode === "register" ? "Создать аккаунт" : "Войти"}</button>
+            <button class="btn ghost" id="switch">${mode === "register" ? "У меня уже есть аккаунт" : "Зарегистрироваться"}</button>
+          </div>
+          <p class="demo">Для демо: <button id="demo1">Пользователь · +7 911 345-61-04</button> · <button id="demo2">Пользователь · +7 903 551-77-21</button></p>
+        </div>`;
+      if (mode === "register") {
+        bindChips($("diets"), form.diet, false, () => { form.phone = $("phone").value; renderAuth("register"); });
+        bindChips($("dislikes"), form.dislikes, true, () => { form.phone = $("phone").value; renderAuth("register"); });
+        bindChips($("allergies"), form.allergies, true, () => { form.phone = $("phone").value; renderAuth("register"); });
+        bindChips($("tastes"), form.tastes, true, () => { form.phone = $("phone").value; renderAuth("register"); });
+      }
+      $("go").addEventListener("click", () => submitAuth(mode));
+      $("switch").addEventListener("click", () => renderAuth(mode === "register" ? "login" : "register"));
+      $("demo1").addEventListener("click", () => { form.phone = "+7 911 345-61-04"; submitAuth("login"); });
+      $("demo2").addEventListener("click", () => { form.phone = "+7 903 551-77-21"; submitAuth("login"); });
+    }
+
+    async function submitAuth(mode) {
+      form.phone = ($("phone") && $("phone").value) || form.phone;
+      form.name = "Пользователь";
+      try {
+        const data = mode === "register"
+          ? await api("/api/guest/register", { method: "POST", body: JSON.stringify(form) })
+          : await api("/api/guest/login", { method: "POST", body: JSON.stringify({ phone: form.phone }) });
+        localStorage.setItem(TOKEN_KEY, data.token);
+        await loadMe();
+      } catch (e) {
+        renderAuth(mode, e.message);
+      }
+    }
+
+    function isProfilePage() {
+      return location.pathname.replace(/\/+$/, "") === "/guest/profile";
+    }
+
+    async function loadMe() {
+      $("app").innerHTML = `<p class="hint">Открываю ваш профиль…</p>`;
+      try {
+        me = await api("/api/guest/me");
+        if (isProfilePage()) renderProfile();
+        else renderHome();
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+        renderAuth("login");
+      }
+    }
+
+    function uniquePrefs(list) {
+      const seen = new Set();
+      return (list || []).filter((p) => {
+        const key = p.kind + ":" + p.value;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function evening() {
+      return me.evening || { mood: "", company: "" };
+    }
+
+    function labelOf(pairs, value) {
+      const found = pairs.find((item) => item[0] === value);
+      return found ? found[1] : "";
+    }
+
+    function eveningSummary(ev) {
+      const bits = [labelOf(MOODS, ev.mood), labelOf(COMPANY, ev.company)].filter(Boolean);
+      return bits.length
+        ? "Сейчас: " + bits.join(" · ") + ". Профиль не меняется."
+        : "Фильтра на вечер нет — новинки считаются по профилю.";
+    }
+
+    function renderNav(active) {
+      return `
+        <div class="nav">
+          <p class="brand">Ресторан Терра</p>
+          <div class="nav-links">
+            <button class="nav-btn ${active === "home" ? "on" : ""}" id="nav-home">Главная</button>
+            <button class="nav-btn ${active === "profile" ? "on" : ""}" id="nav-profile">Профиль</button>
+            <button class="nav-btn quiet" id="out">Выйти</button>
+          </div>
+        </div>`;
+    }
+
+    function bindNav() {
+      $("nav-home").addEventListener("click", () => {
+        if (isProfilePage()) location.href = "/guest";
+        else renderHome();
+      });
+      $("nav-profile").addEventListener("click", () => {
+        if (isProfilePage()) renderProfile();
+        else location.href = "/guest/profile";
+      });
+      $("out").addEventListener("click", () => {
+        localStorage.removeItem(TOKEN_KEY);
+        me = null;
+        history.replaceState(null, "", "/guest");
+        renderAuth("login");
+      });
+    }
+
+    function recCard(d) {
+      return `
+        <div class="dish ${d.category || ""}">
+          <div class="row">
+            <b>${d.name}</b>
+            <button class="btn tiny" data-hide="${d.name}">Не предлагать</button>
+          </div>
+          <div class="hint">
+            ${d.weekly ? `<span class="badge week">неделя</span>` : ""}
+            ${d.seasonal ? `<span class="badge season">сезон</span>` : ""}
+            ${d.is_new ? `<span class="new">новинка</span> · ` : ""}${d.reason}
+          </div>
+        </div>`;
+    }
+
+    function recsHtml(list) {
+      const season = [];
+      const week = [];
+      const rest = [];
+      (list || []).forEach((d) => {
+        if (d.seasonal) season.push(d);
+        else if (d.weekly) week.push(d);
+        else rest.push(d);
+      });
+      const blocks = [];
+      if (season.length) blocks.push(`<div class="rec-group"><h3>Сезон</h3>${season.map(recCard).join("")}</div>`);
+      if (week.length) blocks.push(`<div class="rec-group"><h3>На этой неделе</h3>${week.map(recCard).join("")}</div>`);
+      if (rest.length) blocks.push(`<div class="rec-group"><h3>Ещё под ваш вкус</h3>${rest.map(recCard).join("")}</div>`);
+      return blocks.join("") || "<p class='hint'>Отметьте вкусы в профиле — подберём новинки.</p>";
+    }
+
+    async function saveEvening(patch) {
+      try {
+        const next = Object.assign({}, evening(), patch);
+        me = await api("/api/guest/me/evening", { method: "PUT", body: JSON.stringify(next) });
+        renderHome();
+      } catch (e) {
+        renderHome(e.message);
+      }
+    }
+
+    function renderHome(error) {
+      const pending = me.pending_feedback;
+      const ev = evening();
+      const nRecs = pending ? "3" : "2";
+      const nHist = pending ? "4" : "3";
+      $("app").innerHTML = `
+        <div class="hero">
+          ${renderNav("home")}
+          <h1>Пользователь</h1>
+          <p class="sub">${me.loyalty_label} · ${me.visits_count} визитов. Сначала вечер, потом новинки, потом визиты.</p>
+          <div class="path">
+            <span class="now">1 Этот вечер</span>
+            ${pending ? `<span>2 После визита</span>` : ""}
+            <span>${nRecs} Новинки</span>
+            <span>${nHist} Визиты</span>
+          </div>
+        </div>
+        ${error ? `<p class="err">${error}</p>` : ""}
+        <div class="card section">
+          <h3><span class="num">1</span>Этот вечер</h3>
+          <p class="hint">Не меняет профиль. Только подсказка, что предложить сегодня.</p>
+          <h3>Настроение</h3>
+          <div class="chips" id="moods">${chips(MOODS, ev.mood, null, false)}</div>
+          <h3>Компания</h3>
+          <div class="chips" id="company">${chips(COMPANY, ev.company, null, false)}</div>
+          <div class="evening-now">${eveningSummary(ev)}</div>
+        </div>
+        ${pending ? `
+          <div class="card accent section">
+            <h3><span class="num">2</span>После визита</h3>
+            <h2>Как прошло ${pending.visited_at}?</h2>
+            <p class="hint">${(pending.dishes || []).join(", ") || "Блюда не записаны"}. Короткий отзыв уточнит ваши новинки.</p>
+            <div class="actions"><button class="btn ok" id="open-fb">Ответить</button></div>
+          </div>` : ""}
+        <div class="card section">
+          <h3><span class="num">${nRecs}</span>Новинки для вас</h3>
+          <p class="hint">Сначала сезон и неделя, если они проходят опрос. Затем остальные совпадения.</p>
+          ${recsHtml(me.recommendations)}
+        </div>
+        <div class="card section">
+          <h3><span class="num">${nHist}</span>Визиты</h3>
+          ${(me.visits || []).map(v => `
+            <div class="dish">
+              <div class="row"><span>${v.visited_at}</span></div>
+              <div class="hint">${(v.dishes || []).join(", ") || "—"} ${v.has_feedback ? "· отзыв есть" : "· отзыв ещё не оставлен"}</div>
+            </div>`).join("") || "<p class='hint'>Визитов пока нет.</p>"}
+          <div class="actions">
+            <button class="btn" id="demo-visit">Я был в «Терре» сегодня</button>
+          </div>
+        </div>`;
+      bindNav();
+      $("moods").querySelectorAll(".chip").forEach((btn) => btn.addEventListener("click", () => {
+        saveEvening({ mood: ev.mood === btn.dataset.v ? "" : btn.dataset.v });
+      }));
+      $("company").querySelectorAll(".chip").forEach((btn) => btn.addEventListener("click", () => {
+        saveEvening({ company: ev.company === btn.dataset.v ? "" : btn.dataset.v });
+      }));
+      document.querySelectorAll("[data-hide]").forEach((btn) => btn.addEventListener("click", async () => {
+        try {
+          me = await api("/api/guest/me/hidden", { method: "POST", body: JSON.stringify({ name: btn.dataset.hide }) });
+          renderHome();
+        } catch (e) { renderHome(e.message); }
+      }));
+      if ($("open-fb")) $("open-fb").addEventListener("click", renderFeedback);
+      $("demo-visit").addEventListener("click", async () => {
+        try { me = await api("/api/guest/demo-visit", { method: "POST" }); renderHome(); }
+        catch (e) { renderHome(e.message); }
+      });
+    }
+
+    function prefsOf(kind) {
+      return uniquePrefs(me.preferences).filter((p) => p.kind === kind);
+    }
+
+    function fillEditFromMe() {
+      const diets = prefsOf("diet").map((p) => p.value);
+      form.diet = diets[0] || "обычное";
+      form.dislikes = prefsOf("dislike").map((p) => p.value);
+      form.allergies = prefsOf("allergy").map((p) => p.value);
+      form.tastes = prefsOf("taste").map((p) => p.value);
+    }
+
+    function describePrefs() {
+      const diet = prefsOf("diet").map((p) => p.value);
+      const dislikes = prefsOf("dislike").map((p) => p.value);
+      const allergies = prefsOf("allergy").map((p) => p.value);
+      const tastes = prefsOf("taste").map((p) => p.value);
+      const favorites = prefsOf("favorite_dish").map((p) => p.value);
+      const lines = [];
+      lines.push(diet.length
+        ? `Питание: ${diet.join(", ")}. Блюда, которые этому противоречат, в новинки не попадают.`
+        : "Питание не ограничено: можно предлагать блюда из всего меню.");
+      lines.push(dislikes.length
+        ? `Не любит: ${dislikes.join(", ")}. Такие вкусы скрываем.`
+        : "Запретов по вкусу нет.");
+      lines.push(allergies.length
+        ? `Аллергии: ${allergies.join(", ")}. Эти продукты исключаем полностью.`
+        : "Аллергий не указано.");
+      lines.push(tastes.length
+        ? `Ближе по вкусу: ${tastes.join(", ")}. Новинки в первую очередь из этих групп.`
+        : "Любимые группы блюд ещё не выбраны.");
+      if (favorites.length) {
+        lines.push(`Любимые блюда из визитов и отзывов: ${favorites.join(", ")}.`);
+      }
+      return lines.map((t) => `<p class="hint" style="margin:0 0 10px">${t}</p>`).join("");
+    }
+
+    function renderProfile(error, keepEdit) {
+      if (!keepEdit) fillEditFromMe();
+      $("app").innerHTML = `
+        <div class="hero">
+          ${renderNav("profile")}
+          <h1>Пользователь</h1>
+          <p class="sub">${me.loyalty_label} · ${me.visits_count} визитов · ${me.phone || ""}</p>
+          <div class="path">
+            <span class="now">1 О вас</span>
+            <span>2 Изменить</span>
+            <span>3 Скрытые</span>
+            <span>4 История вкуса</span>
+          </div>
+        </div>
+        ${error ? `<p class="err">${error}</p>` : ""}
+        <div class="card section">
+          <h3><span class="num">1</span>О вас</h3>
+          ${describePrefs()}
+        </div>
+        <div class="card section">
+          <h3><span class="num">2</span>Изменить предпочтения</h3>
+          <p class="hint" style="margin-top:0">После сохранения новинки пересчитаются под новый вкус.</p>
+          <h3>Как питаетесь</h3>
+          <div class="chips" id="diets">${chips(DIETS, form.diet, null, false)}</div>
+          <h3>Что не любите</h3>
+          <div class="chips" id="dislikes">${chips(DISLIKES, form.dislikes, null, true)}</div>
+          <h3>Аллергии</h3>
+          <div class="chips" id="allergies">${chips(ALLERGIES, form.allergies, null, true)}</div>
+          <h3>Какие вкусы ближе</h3>
+          <div class="chips" id="tastes">${chips(TASTES, form.tastes, null, true)}</div>
+          <div class="actions">
+            <button class="btn ok" id="save-prefs">Сохранить</button>
+          </div>
+        </div>
+        <div class="card section">
+          <h3><span class="num">3</span>Скрытые блюда</h3>
+          ${(me.hidden || []).length
+            ? (me.hidden || []).map((name) => `
+              <div class="dish">
+                <div class="row">
+                  <b>${name}</b>
+                  <button class="btn tiny" data-show="${name}">Вернуть</button>
+                </div>
+                <div class="hint">Не показывается в новинках, пока не вернёте.</div>
+              </div>`).join("")
+            : "<p class='hint'>Нет скрытых блюд. На главной можно нажать «Не предлагать».</p>"}
+        </div>
+        <div class="card section">
+          <h3><span class="num">4</span>История вкуса</h3>
+          ${(me.taste_log || []).length
+            ? (me.taste_log || []).map((row) => `<div class="log"><div class="hint">${row.at}</div>${row.text}</div>`).join("")
+            : "<p class='hint'>История появится после опроса и изменений профиля.</p>"}
+        </div>`;
+      bindNav();
+      document.querySelectorAll("[data-show]").forEach((btn) => btn.addEventListener("click", async () => {
+        try {
+          me = await api("/api/guest/me/hidden?name=" + encodeURIComponent(btn.dataset.show), { method: "DELETE" });
+          renderProfile();
+        } catch (e) { renderProfile(e.message); }
+      }));
+      const redraw = () => renderProfile(null, true);
+      bindChips($("diets"), form.diet, false, redraw);
+      bindChips($("dislikes"), form.dislikes, true, redraw);
+      bindChips($("allergies"), form.allergies, true, redraw);
+      bindChips($("tastes"), form.tastes, true, redraw);
+      $("save-prefs").addEventListener("click", async () => {
+        try {
+          me = await api("/api/guest/me/preferences", {
+            method: "PUT",
+            body: JSON.stringify({
+              diet: form.diet,
+              dislikes: form.dislikes,
+              allergies: form.allergies,
+              tastes: form.tastes,
+            }),
+          });
+          renderProfile();
+        } catch (e) {
+          renderProfile(e.message);
+        }
+      });
+    }
+
+    function renderFeedback() {
+      const pending = me.pending_feedback;
+      if (!pending) return renderHome();
+      fb.liked_most = fb.liked_most || (pending.dishes[0] || "");
+      $("app").innerHTML = `
+        <div class="hero">
+          <p class="brand">После визита</p>
+          <h1>Что зашло — и что нет</h1>
+          <p class="sub">Ответ останется в вашем профиле и изменит рекомендации.</p>
+        </div>
+        <div class="card">
+          <h3>Оценка</h3>
+          <div class="stars" id="stars">${[1,2,3,4,5].map(n => `<button class="btn ${fb.rating === n ? "ok" : ""}" data-n="${n}">${n}</button>`).join("")}</div>
+          <h3>Что понравилось больше всего</h3>
+          <div class="chips" id="liked">${chips(pending.dishes.length ? pending.dishes : ["атмосфера"], fb.liked_most, null, false)}</div>
+          <input id="liked-text" placeholder="Или напишите своими словами" value="${fb.liked_most}" />
+          <h3>Над чем можно поработать</h3>
+          <div class="chips" id="improve">${chips(IMPROVE, fb.improve_topic, null, false)}</div>
+          <input id="improve-text" placeholder="Коротко, если хотите" value="${fb.improve_text}" />
+          <div class="actions">
+            <button class="btn ok" id="send">Сохранить</button>
+            <button class="btn ghost" id="back">Позже</button>
+          </div>
+        </div>`;
+      $("stars").querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => { fb.rating = Number(btn.dataset.n); renderFeedback(); }));
+      $("liked").querySelectorAll(".chip").forEach((btn) => btn.addEventListener("click", () => { fb.liked_most = btn.dataset.v; renderFeedback(); }));
+      $("improve").querySelectorAll(".chip").forEach((btn) => btn.addEventListener("click", () => { fb.improve_topic = btn.dataset.v; renderFeedback(); }));
+      $("send").addEventListener("click", async () => {
+        fb.liked_most = $("liked-text").value || fb.liked_most;
+        fb.improve_text = $("improve-text").value;
+        try {
+          me = await api("/api/guest/feedback", {
+            method: "POST",
+            body: JSON.stringify({
+              visit_id: pending.visit_id,
+              liked_most: fb.liked_most,
+              improve_topic: fb.improve_topic,
+              improve_text: fb.improve_text,
+              rating: fb.rating,
+            }),
+          });
+          fb = { rating: 5, liked_most: "", improve_topic: "", improve_text: "" };
+          renderHome();
+        } catch (e) { $("app").insertAdjacentHTML("afterbegin", `<p class="err">${e.message}</p>`); }
+      });
+      $("back").addEventListener("click", () => renderHome());
+    }
+
+    if (localStorage.getItem(TOKEN_KEY)) loadMe();
+    else renderAuth("login");
+  </script>
+</body>
+</html>

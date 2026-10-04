@@ -2,7 +2,17 @@
 до вызова create_all и строковые ссылки в relationship разрешаются."""
 
 from app.db.models.ai import AiInsight, Recommendation, RecommendationOutcome
-from app.db.models.guests import Guest, GuestPreference, GuestVisit
+from app.db.models.guests import (
+    Guest,
+    GuestAccount,
+    GuestEvening,
+    GuestFeedback,
+    GuestHiddenDish,
+    GuestPreference,
+    GuestTasteLog,
+    GuestVisit,
+    MenuHighlight,
+)
 from app.db.models.inventory import InventoryItem, InventoryMovement
 from app.db.models.menu import MenuItem, RecipeItem
 from app.db.models.ops import (
@@ -20,8 +30,14 @@ __all__ = [
     "AiInsight",
     "DecisionLog",
     "Guest",
+    "GuestAccount",
+    "GuestEvening",
+    "GuestFeedback",
+    "GuestHiddenDish",
     "GuestPreference",
+    "GuestTasteLog",
     "GuestVisit",
+    "MenuHighlight",
     "InventoryItem",
     "InventoryMovement",
     "MenuItem",

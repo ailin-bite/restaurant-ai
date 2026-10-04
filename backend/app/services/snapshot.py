@@ -5,12 +5,13 @@
 измерении результата принятой рекомендации.
 """
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.percent import clamp_pct
 from app.db.models import MetricsSnapshot
 from app.services import inventory as inventory_service
 from app.services import kitchen as kitchen_service
@@ -143,14 +144,43 @@ def persist(session: Session, snapshot: Snapshot) -> MetricsSnapshot:
     return row
 
 
+def seating_outlook(snapshot: Snapshot) -> dict:
+    """Прогноз посадки: хватит ли свободных мест на ближайшие брони."""
+
+    guests = snapshot.reservations["guests_30m"]
+    free_seats = snapshot.occupancy["seats_free"]
+    free_tables = snapshot.occupancy["free"]
+    bookings = snapshot.reservations["next_30m"]
+    shortfall = max(0, guests - free_seats)
+    if guests <= 0:
+        probability = 0.1
+    elif guests <= free_seats:
+        probability = clamp_pct(20 + bookings * 4) / 100
+    else:
+        probability = clamp_pct(55 + shortfall * 3) / 100
+    return {
+        "horizon_min": 30,
+        "bookings": bookings,
+        "guests": guests,
+        "free_seats": free_seats,
+        "free_tables": free_tables,
+        "shortfall_seats": shortfall,
+        "probability": min(1.0, probability),
+        "reason": (
+            f"{bookings} броней на {guests} гостей при {free_seats} свободных местах "
+            f"({free_tables} свободных столов)"
+        ),
+    }
+
+
 def to_dashboard_dict(snapshot: Snapshot) -> dict:
     return {
         "captured_at": snapshot.captured_at.strftime("%H:%M"),
         "occupancy": snapshot.occupancy,
-        "orders": snapshot.orders,
-        "kitchen": snapshot.kitchen,
-        "staff": snapshot.staff,
+        "orders": {
+            "active": snapshot.orders["active"],
+            "delayed": snapshot.orders["delayed"],
+        },
         "reservations": snapshot.reservations,
-        "inventory": snapshot.inventory,
-        "shortage_risks": [asdict(r) for r in snapshot.shortage_risks[:5]],
+        "seating": seating_outlook(snapshot),
     }

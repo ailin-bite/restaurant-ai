@@ -1,8 +1,8 @@
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,16 +12,15 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import settings
 from app.core.time_provider import clock
 from app.db.base import create_all
-from app.db.models import AiInsight, Recommendation, RecommendationOutcome
+from app.db.models import AiInsight, Guest, Recommendation, RecommendationOutcome
 from app.deps import get_db
-from app.services import decisions, forecast as forecast_service
+from app.services import decisions
+from app.services import guest_app as guest_app_service
 from app.services import guests as guests_service
-from app.services import inventory as inventory_service
 from app.services import orders as orders_service
 from app.services import reviews as reviews_service
 from app.services import rules
 from app.services import snapshot as snapshot_service
-from app.services import staff as staff_service
 from app.services import tables as tables_service
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -40,6 +39,55 @@ class RejectBody(BaseModel):
     note: Optional[str] = None
 
 
+class GuestLoginBody(BaseModel):
+    phone: str
+
+
+class GuestRegisterBody(BaseModel):
+    name: str
+    phone: str
+    diet: Optional[str] = None
+    dislikes: List[str] = []
+    allergies: List[str] = []
+    tastes: List[str] = []
+
+
+class GuestPrefsBody(BaseModel):
+    diet: Optional[str] = None
+    dislikes: List[str] = []
+    allergies: List[str] = []
+    tastes: List[str] = []
+
+
+class GuestEveningBody(BaseModel):
+    mood: Optional[str] = None
+    company: Optional[str] = None
+
+
+class GuestHideBody(BaseModel):
+    name: str
+
+
+class GuestFeedbackBody(BaseModel):
+    visit_id: int
+    liked_most: Optional[str] = None
+    improve_topic: Optional[str] = None
+    improve_text: Optional[str] = None
+    rating: Optional[int] = None
+
+
+def _current_guest(
+    db: Session = Depends(get_db),
+    x_guest_token: Optional[str] = Header(default=None),
+) -> Guest:
+    if not x_guest_token:
+        raise HTTPException(401, "Нужен вход в аккаунт")
+    guest = guest_app_service.find_by_token(db, x_guest_token)
+    if guest is None:
+        raise HTTPException(401, "Сессия недействительна")
+    return guest
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     create_all()
@@ -50,19 +98,12 @@ def _analyze(session: Session):
     now = clock.now()
     snapshot = snapshot_service.build(session, now)
     snapshot_service.persist(session, snapshot)
-    forecast = forecast_service.build(
-        session,
-        now,
-        snapshot.station_loads,
-        reservations_in_window=snapshot.reservations["next_30m"],
-        active_orders=snapshot.orders["active"],
-        avg_wait_now=snapshot.orders["avg_wait_min"],
-        horizon_min=30,
-    )
-    detected = rules.detect(snapshot, forecast)
+    review_analysis = reviews_service.analyze(session, now, 7)
+    outlook = snapshot_service.seating_outlook(snapshot)
+    detected = rules.detect(snapshot, review_analysis)
     rules.persist(session, now, detected, snapshot.snapshot_id)
     session.flush()
-    return now, snapshot, forecast
+    return now, snapshot, outlook
 
 
 def _insight_out(insight: AiInsight) -> dict:
@@ -112,7 +153,117 @@ def _insight_out(insight: AiInsight) -> dict:
 
 @app.get("/")
 def index():
+    return FileResponse(STATIC_DIR / "guest.html")
+
+
+@app.get("/guest")
+def guest_page():
+    return FileResponse(STATIC_DIR / "guest.html")
+
+
+@app.get("/guest/profile")
+def guest_profile_page():
+    return FileResponse(STATIC_DIR / "guest.html")
+
+
+@app.get("/manager")
+def manager_page():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.post("/api/guest/login")
+def guest_login(body: GuestLoginBody, db: Session = Depends(get_db)):
+    try:
+        return guest_app_service.login(db, body.phone)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/guest/register")
+def guest_register(body: GuestRegisterBody, db: Session = Depends(get_db)):
+    try:
+        return guest_app_service.register(
+            db,
+            body.name,
+            body.phone,
+            body.diet,
+            body.dislikes,
+            body.allergies,
+            body.tastes,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/guest/me")
+def guest_me(guest: Guest = Depends(_current_guest), db: Session = Depends(get_db)):
+    return guest_app_service.profile(db, guest)
+
+
+@app.put("/api/guest/me/preferences")
+def guest_update_preferences(
+    body: GuestPrefsBody,
+    guest: Guest = Depends(_current_guest),
+    db: Session = Depends(get_db),
+):
+    return guest_app_service.update_preferences(
+        db, guest, body.diet, body.dislikes, body.allergies, body.tastes
+    )
+
+
+@app.put("/api/guest/me/evening")
+def guest_evening(
+    body: GuestEveningBody,
+    guest: Guest = Depends(_current_guest),
+    db: Session = Depends(get_db),
+):
+    return guest_app_service.set_evening(db, guest, body.mood, body.company)
+
+
+@app.post("/api/guest/me/hidden")
+def guest_hide(
+    body: GuestHideBody,
+    guest: Guest = Depends(_current_guest),
+    db: Session = Depends(get_db),
+):
+    try:
+        return guest_app_service.hide_dish(db, guest, body.name)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.delete("/api/guest/me/hidden")
+def guest_unhide(
+    name: str,
+    guest: Guest = Depends(_current_guest),
+    db: Session = Depends(get_db),
+):
+    return guest_app_service.unhide_dish(db, guest, name)
+
+
+@app.post("/api/guest/feedback")
+def guest_feedback(
+    body: GuestFeedbackBody,
+    guest: Guest = Depends(_current_guest),
+    db: Session = Depends(get_db),
+):
+    try:
+        return guest_app_service.save_feedback(
+            db,
+            guest,
+            body.visit_id,
+            body.liked_most,
+            body.improve_topic,
+            body.improve_text,
+            body.rating,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/guest/demo-visit")
+def guest_demo_visit(guest: Guest = Depends(_current_guest), db: Session = Depends(get_db)):
+    return guest_app_service.add_demo_visit(db, guest)
 
 
 @app.get("/api/dashboard")
@@ -129,7 +280,7 @@ def dashboard(db: Session = Depends(get_db)):
         "restaurant": settings.restaurant_name,
         "now": now.strftime("%H:%M"),
         "dashboard": snapshot_service.to_dashboard_dict(snapshot),
-        "forecast": asdict(forecast),
+        "forecast": forecast,
         "alerts": [_insight_out(i) for i in insights],
         "timeseries": orders_service.recent_timeseries(db, now, 60),
     }
@@ -156,26 +307,6 @@ def tables(db: Session = Depends(get_db)):
         "occupancy": tables_service.occupancy(views),
         "tables": [asdict(v) for v in views],
         "reservations": tables_service.reservations_window(db, now, 60),
-    }
-
-
-@app.get("/api/staff")
-def staff(db: Session = Depends(get_db)):
-    now = clock.now()
-    snapshot = snapshot_service.build(db, now)
-    return {
-        "average_load_pct": snapshot.staff["average_load_pct"],
-        "staff": [asdict(v) for v in snapshot.staff_views],
-    }
-
-
-@app.get("/api/inventory")
-def inventory(db: Session = Depends(get_db)):
-    now, snapshot, _forecast = _analyze(db)
-    return {
-        "items": inventory_service.inventory_overview(db),
-        "risks": [asdict(r) for r in snapshot.shortage_risks],
-        "captured_at": now.strftime("%H:%M"),
     }
 
 
@@ -207,21 +338,9 @@ def insights(db: Session = Depends(get_db)):
 
 
 @app.get("/api/ai/forecast")
-def forecast(horizon_min: int = 30, db: Session = Depends(get_db)):
-    now, snapshot, built = _analyze(db)
-    if horizon_min != 30:
-        built = forecast_service.build(
-            db,
-            now,
-            snapshot.station_loads,
-            reservations_in_window=snapshot.reservations["next_60m"]
-            if horizon_min >= 60
-            else snapshot.reservations["next_30m"],
-            active_orders=snapshot.orders["active"],
-            avg_wait_now=snapshot.orders["avg_wait_min"],
-            horizon_min=horizon_min,
-        )
-    return asdict(built)
+def forecast(db: Session = Depends(get_db)):
+    _now, _snapshot, outlook = _analyze(db)
+    return outlook
 
 
 @app.post("/api/recommendations/{recommendation_id}/accept")
